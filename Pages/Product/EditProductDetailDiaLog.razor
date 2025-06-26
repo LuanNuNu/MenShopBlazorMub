@@ -1,0 +1,139 @@
+﻿@using MenShopBlazor.DTOs.Product.UpdateProduct
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs;
+@using MenShopBlazor.Services.Product;
+@inject ISnackbar Snackbar
+@inject IProductService ProductService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">CẬP NHẬT CHI TIẾT SẢN PHẨM</MudText>
+    </TitleContent>
+    <DialogContent>
+
+        <MudSelect T="int" @bind-Value="_detail.SizeId" Label="Size" Required="true">
+            @foreach (var size in sizes)
+            {
+                <MudSelectItem Value="@size.SizeId">@size.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudSelect T="int" @bind-Value="_detail.ColorId" Label="Màu sắc" Required="true">
+            @foreach (var color in colors)
+            {
+                <MudSelectItem Value="@color.ColorId">@color.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudSelect T="int" @bind-Value="_detail.FabricId" Label="Chất liệu" Required="true">
+            @foreach (var fabric in fabrics)
+            {
+                <MudSelectItem Value="@fabric.FabricId">@fabric.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Secondary" OnClick="@Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" OnClick="@Update">Cập nhật</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public ProductDetailViewModel Detail { get; set; }
+    private UpdateProductDetailDTO _detail = new();
+    private IEnumerable<SizeModel> sizes = new List<SizeModel>();
+    private IEnumerable<ColorModel> colors = new List<ColorModel>();
+    private IEnumerable<FabricModel> fabrics = new List<FabricModel>();
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     sizes = await ProductService.GetAllSizesAsync();
+    //     colors = await ProductService.GetAllColorsAsync();
+    //     fabrics = await ProductService.GetAllFabricsAsync();
+
+    //     var matchedSize = sizes.FirstOrDefault(x => x.Name == Detail.SizeName);
+    //     var matchedColor = colors.FirstOrDefault(x => x.Name == Detail.ColorName);
+    //     var matchedFabric = fabrics.FirstOrDefault(x => x.Name == Detail.FabricName);
+
+    //     _detail = new UpdateProductDetailDTO
+    //         {
+    //             SizeId = matchedSize?.SizeId ?? 0,
+    //             ColorId = matchedColor?.ColorId ?? 0,
+    //             FabricId = matchedFabric?.FabricId ?? 0
+    //         };
+    // }
+    protected override async Task OnInitializedAsync()
+    {
+        // Tạm thời dùng dữ liệu giả lập
+        sizes = new List<SizeModel>
+    {
+        new() { SizeId = 1, Name = "S" },
+        new() { SizeId = 2, Name = "M" },
+        new() { SizeId = 3, Name = "L" },
+        new() { SizeId = 4, Name = "XL" }
+    };
+
+        colors = new List<ColorModel>
+    {
+        new() { ColorId = 1, Name = "Đỏ" },
+        new() { ColorId = 2, Name = "Xanh" },
+        new() { ColorId = 3, Name = "Đen" }
+    };
+
+        fabrics = new List<FabricModel>
+    {
+        new() { FabricId = 1, Name = "Cotton" },
+        new() { FabricId = 2, Name = "Linen" },
+        new() { FabricId = 3, Name = "Polyester" }
+    };
+
+
+        var matchedSize = sizes.FirstOrDefault(x => x.Name == Detail.SizeName);
+        var matchedColor = colors.FirstOrDefault(x => x.Name == Detail.ColorName);
+        var matchedFabric = fabrics.FirstOrDefault(x => x.Name == Detail.FabricName);
+
+        _detail = new UpdateProductDetailDTO
+            {
+                DetailId = Detail.DetailId,
+                SizeId = matchedSize?.SizeId ?? 0,
+                ColorId = matchedColor?.ColorId ?? 0,
+                FabricId = matchedFabric?.FabricId ?? 0
+            };
+    }
+
+    private async Task Update()
+    {
+        if (_detail.SizeId == 0 || _detail.ColorId == 0 || _detail.FabricId == 0)
+        {
+            Snackbar.Add("Vui lòng chọn đầy đủ Size, Màu và Chất liệu", Severity.Warning);
+            return;
+        }
+        {
+            Snackbar.Add("Vui lòng nhập đầy đủ thông tin", Severity.Warning);
+            return;
+        }
+
+        var result = await ProductService.UpdateProductDetailAsync(_detail);
+        if (result != null && result.IsSuccess)
+        {
+            Snackbar.Add("Cập nhật chi tiết thành công", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add("Cập nhật thất bại", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
+

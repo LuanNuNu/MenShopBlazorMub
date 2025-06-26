@@ -1,0 +1,90 @@
+﻿@using MenShopBlazor.Services.Category;
+@using MenShopBlazor.DTOs.Category;
+@using MenShopBlazor.Services.Product;
+@using MenShopBlazor.DTOs.Product;
+@inject ICategoryService CategoryService
+@inject IProductService ProductService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Small" MaxHeight="unset" Style="overflow-y:hidden;">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Thêm sản phẩm mới</MudText>
+
+        <MudTextField @bind-Value="product.ProductName"
+                      Label="Tên Sản phẩm"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => product.ProductName)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+        <MudTextField @bind-Value="product.Description"
+                      Label="Mô tả"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => product.Description)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+        <MudSelect T="int"
+                   Label="Danh mục"
+                   Margin="Margin.Dense"
+                   Variant="Variant.Outlined"
+                   @bind-Value="product.CategoryId"
+                   Required="true">
+            @foreach (var category in categories)
+            {
+                <MudSelectItem Value="@category.CategoryId">@category.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CreateProductAsync">Thêm</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    private CreateProductDTO product = new();
+    private IEnumerable<CategoryModelView> categories = new List<CategoryModelView>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        product.Status = true; 
+        categories = await CategoryService.GetAllCategoriesAsync();
+    }
+
+    private async Task CreateProductAsync()
+    {
+        if (string.IsNullOrWhiteSpace(product.ProductName))
+        {
+            Snackbar.Add("Tên sản phẩm không được để trống", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(product.Description))
+        {
+            Snackbar.Add("Mô tả sản phẩm không được để trống", Severity.Warning);
+            return;
+        }
+        var response = await ProductService.CreateProductAsync(product);
+        if (response != null)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add("Tạo sản phẩm thất bại", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

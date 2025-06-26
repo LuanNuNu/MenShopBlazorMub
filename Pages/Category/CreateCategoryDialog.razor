@@ -1,0 +1,55 @@
+﻿
+@using MenShopBlazor.Services.Category;
+@using MenShopBlazor.DTOs.Category;
+@inject ICategoryService CategoryService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Small" MaxHeight="unset" Style="overflow-y:hidden;">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Thêm danh mục mới</MudText>
+        <MudTextField @bind-Value="category.Name"
+                      Label="Tên danh mục"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => category.Name)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CreateCategoryAsync">Thêm</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    private CreateCategoryDTO category = new();
+
+    private async Task CreateCategoryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(category.Name))
+        {
+            Snackbar.Add("Tên danh mục không được để trống", Severity.Warning);
+            return;
+        }
+
+        var response = await CategoryService.CreateCategoryAsync(category);
+        if (response != null)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add("Tạo danh mục thất bại", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

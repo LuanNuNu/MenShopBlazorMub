@@ -1,0 +1,13 @@
+﻿<MudPaper Width="250px" Elevation="0" Class="py-3">
+    <MudNavMenu Color="Color.Info">
+        <MudNavLink Typo="Typo.h2" Href="/list-category" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Category">Quản Lý Danh Mục</MudNavLink>
+        <MudNavGroup Title="Quản Lý Sản Phẩm" Expanded="true" Icon="@Icons.Material.Filled.ListAlt">
+            <MudNavLink Href="/list-product" Match="NavLinkMatch.Prefix">Danh Sách Sản Phẩm</MudNavLink>
+        </MudNavGroup>
+        <MudNavGroup Title="Quản Lý Hóa Đơn" Expanded="true">
+            <MudNavLink Href="/users" Match="NavLinkMatch.Prefix">Danh Sách Hóa Đơn</MudNavLink>
+            <MudNavLink Href="/create-order" Match="NavLinkMatch.Prefix">Tạo Hóa Đơn</MudNavLink>
+        </MudNavGroup>
+        <MudNavLink Href="/about" Match="NavLinkMatch.Prefix">About</MudNavLink>
+    </MudNavMenu>
+</MudPaper>

@@ -1,0 +1,15 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body1">@ContentText</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="() => MudDialog.Close(DialogResult.Ok(true))">Đồng ý</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="() => MudDialog.Cancel()">Huỷ</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public string ContentText { get; set; }
+}

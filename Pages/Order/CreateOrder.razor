@@ -1,0 +1,430 @@
+﻿@page "/create-order"
+@using MenShopBlazor.DTOs.Product
+@using MudBlazor
+@using MenShopBlazor.Shared
+@using MenShopBlazor.Extensions
+@using MenShopBlazor.DTOs.Payment
+@using MenShopBlazor.DTOs.VNPay
+@using MenShopBlazor.DTOs.Order.CreateOrder
+@using MenShopBlazor.DTOs.Order.OrderReponse
+@using MenShopBlazor.Services.Order
+@using MenShopBlazor.Services.Payment
+@inject IOrderService orderService
+@inject IPaymentService paymentService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+
+<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudText Typo="Typo.h5" Class="mb-4">TẠO HÓA ĐƠN</MudText>
+    <MudGrid Class="overflow-y-auto">
+        <MudItem xs="12" sm="8">
+            <MudAutocomplete T="ProductModel"
+            Label="Tìm sản phẩm..."
+            SearchFunc="SearchProducts"
+            ToStringFunc="p => p.Name"
+            ValueChanged="OnProductSelected"
+            Value="selectedProduct"
+            Dense="true"
+            Clearable="true"
+            Class="mb-3">
+
+                <ItemTemplate>
+                    <MudPaper Class="d-flex align-center p-2">
+                        <MudAvatar Class="me-2">
+                            <MudImage Src="@context.Img"></MudImage>
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.subtitle2">@context.Name</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Price.ToString("N0") đ</MudText>
+                        </div>
+                    </MudPaper>
+                </ItemTemplate>
+
+            </MudAutocomplete>
+
+
+            <MudTable Items="@invoiceItems" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>STT</MudTh>
+                    <MudTh>Mã SP</MudTh>
+                    <MudTh>Tên SP</MudTh>
+                    <MudTh>SL</MudTh>
+                    <MudTh>Đơn giá</MudTh>
+                    <MudTh>Thành tiền</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="STT">@(invoiceItems.IndexOf(context) + 1)</MudTd>
+                    <MudTd DataLabel="Mã SP">@context.Product.ProductId</MudTd>
+                    <MudTd DataLabel="Tên SP">@context.Product.Name</MudTd>
+                    <MudTd DataLabel="SL" >
+                        <MudNumericField T="int"
+                        Value="context.Quantity"
+                        Min="1"
+                        Immediate="true"
+                        ValueChanged="@(value => OnQuantityChanged(context, value))" />
+                    </MudTd>
+                    <MudTd DataLabel="Đơn giá">@context.Product.Price.ToString("N0") đ</MudTd>
+                    <MudTd DataLabel="Thành tiền">@FormatCurrency(context.Quantity * context.Product.Price)</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                        OnClick="() => RemoveItem(context)" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="p-4">
+                <MudText Typo="Typo.h6">Thông tin thanh toán</MudText>
+                <MudAutocomplete T="CustomerDTO"
+                @bind-Value="selectedCustomer"
+                ToStringFunc="customer => customer.FullName"
+                SearchFunc="SearchCustomers"
+                Label="Tìm kiếm khách hàng"
+                Placeholder="Tìm theo tên, SDT..."
+                Class="mt-3"
+                Adornment="Adornment.Start"
+                AdornmentIcon="@Icons.Material.Filled.Person" />
+
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add"
+                OnClick="OpenAddCustomerDialog"
+                Color="Color.Secondary"
+                Class="mt-1">
+                    Thêm khách hàng mới
+                </MudButton>
+
+                <MudStack Class="mt-3">
+                    <MudText>Tổng tiền hàng: <b>@total.ToString("N0") đ</b></MudText>
+                    <MudText>Khách cần trả: <b>@total.ToString("N0") đ</b></MudText>
+                </MudStack>
+                <MudRadioGroup T="PaymentMethod"
+                @bind-Value="paymentMethod"
+                Immediate="true"
+                Class="mt-3">
+                    <MudRadio T="PaymentMethod" Color="Color.Primary" Value="@PaymentMethod.Cash">Tiền mặt</MudRadio>
+                    <MudRadio T="PaymentMethod" Color="Color.Secondary" Value="@PaymentMethod.VNPay">Thanh toán VNPay</MudRadio>
+                    <MudRadio T="PaymentMethod" Color="Color.Tertiary" Value="@PaymentMethod.Momo" Disabled=true>Thanh toán MoMo</MudRadio>
+                </MudRadioGroup>
+
+
+
+
+                @if (paymentMethod == PaymentMethod.Cash)
+                {
+                    <MudTextField @bind-Value="customerPaid"
+                    Label="Khách thanh toán (đ)"
+                    Placeholder="Nhập số tiền khách đưa"
+                    Adornment="Adornment.Start"
+                    AdornmentText="₫"
+                    Class="mt-3"
+                    Immediate="true"
+                    OnBlurred="FormatCustomerPaid" />
+
+                }
+
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PayInvoice" Class="mt-4" FullWidth>
+                    THANH TOÁN
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+@code {
+    private ProductModel? selectedProduct;
+    private List<InvoiceItem> invoiceItems = new();
+    private decimal total = 0;
+    private PaymentMethod paymentMethod { get; set; }
+
+
+    private string customerPaid = "";
+    private string customerId = "ecb0c83b-9ecf-4962-a109-d4e3369af6ec";
+    private string employeeId = "ded0270f-d0ff-422e-b456-d5c08a8c0df7";
+    private string FormatCurrency(decimal value) => $"{value:N0} đ";
+    private CustomerDTO selectedCustomer;
+    private List<CustomerDTO> customers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        paymentMethod = PaymentMethod.Cash;
+    }
+    private List<ProductModel> products = new()
+    {
+        new() { ProductId = 10, Name = "Áo sơ mi", Price = 350000, Img = "http://localhost:5014/StaticFiles/Images/0d9a0897-c8f7-4b4f-85e8-f8b73c8588d4_7.5.4.jpg" },
+        new() { ProductId = 2, Name = "Quần jean", Price = 300000, Img = "http://localhost:5014/StaticFiles/Images/7-5.3.jpg"},
+        new() { ProductId = 3, Name = "Áo thun", Price = 200000, Img ="http://localhost:5014/StaticFiles/Images/3.8.jpg"}
+    };
+
+    private Task<IEnumerable<ProductModel>> SearchProducts(string value, CancellationToken _)
+    {
+        IEnumerable<ProductModel> result;
+        if (string.IsNullOrWhiteSpace(value))
+            result = products;
+        else
+            result = products.Where(p => p.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(result);
+    }
+
+    private Task OnProductSelected(ProductModel product)
+    {
+        if (product == null) return Task.CompletedTask;
+
+        AddProductToInvoice(product);
+        selectedProduct = null;
+        return Task.CompletedTask;
+    }
+
+    private void AddProductToInvoice(ProductModel product)
+    {
+        var existing = invoiceItems.FirstOrDefault(i => i.Product.ProductId == product.ProductId);
+        if (existing != null)
+        {
+            existing.Quantity++;
+        }
+        else
+        {
+            invoiceItems.Add(new InvoiceItem { Product = product });
+        }
+
+        CalculateTotal();
+    }
+
+    private void OnQuantityChanged(InvoiceItem item, int newQuantity)
+    {
+        item.Quantity = newQuantity;
+        CalculateTotal();
+    }
+
+    private void RemoveItem(InvoiceItem item)
+    {
+        invoiceItems.Remove(item);
+        CalculateTotal();
+    }
+
+    private void CalculateTotal()
+    {
+        total = invoiceItems.Sum(i => i.Quantity * i.Product.Price);
+    }
+
+
+    private async Task PayInvoice()
+    {
+        if (!ValidateBeforeCreateOrder())
+            return;
+
+        var orderResponse = await CreateOrderAsync();
+        if (!orderResponse.IsSuccess)
+        {
+            Snackbar.Add($"Tạo hóa đơn thất bại: {orderResponse.Message}", Severity.Error);
+            return;
+        }
+
+        var orderId = orderResponse.OrderId;
+
+        switch (paymentMethod)
+        {
+            case PaymentMethod.VNPay:
+                await HandleVNPayAsync(orderId);
+                break;
+
+            default:
+                await HandleOfflinePaymentAsync(orderId);
+                break;
+        }
+    }
+
+
+
+    private bool ValidateBeforeCreateOrder()
+    {
+        if (invoiceItems.Count == 0)
+        {
+            Snackbar.Add("Chưa có sản phẩm trong hóa đơn.", Severity.Warning);
+            return false;
+        }
+
+        if (paymentMethod == PaymentMethod.Cash)
+        {
+            if (!decimal.TryParse(customerPaid, out var paidAmount))
+            {
+                Snackbar.Add("Vui lòng nhập số tiền hợp lệ!", Severity.Error);
+                return false;
+            }
+
+            if (paidAmount < total)
+            {
+                Snackbar.Add("Khách trả chưa đủ tiền!", Severity.Warning);
+                return false;
+            }
+        }
+
+        return true;
+    }
+    private async Task<OrderResponseDTO> CreateOrderAsync()
+    {
+        var createOrderDto = new CreateOrderDTO
+            {
+                CustomerId = customerId,
+                EmployeeId = employeeId,
+                Details = invoiceItems.Select(i => new CreateOrderDetailDTO
+                {
+                    ProductDetailId = i.Product.ProductId,
+                    Quantity = i.Quantity,
+                    Price = i.Product.Price
+                }).ToList()
+            };
+
+        return await orderService.CreateOrderAsync(createOrderDto);
+    }
+    private async Task HandleVNPayAsync(string orderId)
+    {
+        var vnRequest = new VnPaymentRequestModel
+            {
+                OrderId = $"{orderId}",
+                FullName = "Huỳnh Ngọc Luận",
+                Description = $"Đơn hàng của {customerId}",
+                Amount = (int)total
+            };
+
+        var url = await paymentService.CreateVNPayUrlAsync(vnRequest);
+        Console.WriteLine($"Kết quả trả về từ server: {url}");
+
+        if (string.IsNullOrEmpty(url))
+        {
+            Snackbar.Add("Không thể tạo liên kết VNPay. Vui lòng thử lại.", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters
+    {
+        { "ContentText", "Bạn có chắc chắn muốn chuyển đến VNPay để thanh toán không?" }
+    };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+        var dialog = DialogService.Show<ConfirmDialog>("Xác nhận", parameters, options);
+        var result = await dialog.Result;
+
+            if (!result.Canceled)
+            {
+                Snackbar.Add("Đang chuyển tới VNPay...", Severity.Info);
+                Console.WriteLine("VNPay URL: " + url);
+                await Task.Delay(500);
+                Navigation.NavigateTo(url);
+            }
+        else
+        {
+            Snackbar.Add("Bạn đã hủy thanh toán VNPay", Severity.Warning);
+        }
+    }
+
+
+    private async Task HandleOfflinePaymentAsync(string orderId)
+    {
+        var paymentDto = new CreatePaymentDTO
+            {
+                Amount = total,
+                Method = paymentMethod
+            };
+
+        var paymentResult = await paymentService.AddPaymentToOrderAsync(orderId, paymentDto);
+        if (paymentResult != null)
+        {
+            var change = decimal.TryParse(customerPaid, out var paid) ? paid - total : 0;
+            Snackbar.Add($"Thanh toán đơn hàng thành công   ", Severity.Success);
+            var queryParams = $"?orderId={orderId}&amount={total}&transactionCode=OFFLINE-{DateTime.Now.Ticks}&method=Cash&customerPaid={paid}&change={change}";
+            Navigation.NavigateTo($"/payment-result{queryParams}");
+
+            ResetForm();
+        }
+
+        else
+        {
+            Snackbar.Add("Lưu thông tin thanh toán thất bại.", Severity.Error);
+        }
+    }
+    private void ResetForm()
+    {
+        invoiceItems.Clear();
+        total = 0;
+        customerPaid = "";
+        paymentMethod = PaymentMethod.Cash; 
+    }
+
+    private string GetPaymentMethodName() =>
+        paymentMethod switch
+        {
+            PaymentMethod.Cash => "Tiền mặt",
+            PaymentMethod.VNPay => "VNPay",
+            PaymentMethod.Momo => "MoMo",
+            PaymentMethod.COD => "COD",
+            _ => "Không rõ"
+        };
+
+    private void FormatCustomerPaid(FocusEventArgs args)
+    {
+        if (decimal.TryParse(customerPaid, out var paid))
+        {
+            customerPaid = paid.ToString("N0"); 
+        }
+    }
+    private Task<IEnumerable<CustomerDTO>> SearchCustomers(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(Enumerable.Empty<CustomerDTO>());
+
+        var result = allCustomers
+            .Where(c => c.FullName.Contains(value, StringComparison.OrdinalIgnoreCase)
+                     || c.PhoneNumber.Contains(value))
+            .ToList();
+
+        return Task.FromResult(result.AsEnumerable());
+    }
+
+
+    private async Task OpenAddCustomerDialog()
+    {
+        // var parameters = new DialogParameters();
+        // var options = new DialogOptions { MaxWidth = MaxWidth.Small, CloseButton = true };
+        // var dialog = DialogService.Show<AddCustomerDialog>("Thêm khách hàng", parameters, options);
+        // var result = await dialog.Result;
+
+        // if (!result.Canceled && result.Data is CustomerDTO newCustomer)
+        // {
+        //     selectedCustomer = newCustomer;
+        //     Snackbar.Add("Đã thêm khách hàng mới.", Severity.Success);
+        // }
+    }
+
+    private List<CustomerDTO> allCustomers = new() 
+{
+    new CustomerDTO { Id = "KH001", FullName = "Nguyễn Văn A", PhoneNumber = "0912345678" },
+    new CustomerDTO { Id = "KH002", FullName = "Trần Thị B", PhoneNumber = "0909876543" },
+    new CustomerDTO { Id = "KH003", FullName = "Lê Văn C", PhoneNumber = "0933221100" },
+    new CustomerDTO { Id = "KH004", FullName = "Phạm Thị D", PhoneNumber = "0988999777" },
+    new CustomerDTO { Id = "KH005", FullName = "Huỳnh Ngọc Luận", PhoneNumber = "0888123123" }
+};
+
+    public class CustomerDTO
+    {
+        public string Id { get; set; }
+        public string FullName { get; set; }
+        public string PhoneNumber { get; set; }
+    }
+
+    public class InvoiceItem
+    {
+        public ProductModel Product { get; set; }
+        public int Quantity { get; set; } = 1;
+    }
+
+    public class ProductModel
+    {
+        public int ProductId { get; set; }
+        public string Name { get; set; }
+        public decimal Price { get; set; }
+        public string Img { get; set; }
+    }
+}

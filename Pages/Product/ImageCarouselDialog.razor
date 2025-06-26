@@ -1,0 +1,206 @@
+﻿@inject ISnackbar Snackbar
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MudBlazor
+@using MenShopBlazor.Services.Product
+@using MenShopBlazor.Shared;
+@using MenShopBlazor.Services.UploadImage;
+@inject IProductService ProductService
+@inject IUpImg ImageService
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudCarousel TData="string"
+                     ShowArrows="true"
+                     Class="mud-width-full"
+                     Style="height:200px;"
+                     AutoCycle="@autocycle">
+            @foreach (var img in Images)
+            {
+                <MudCarouselItem>
+                    <div style="position: relative; width: 100%; height: 100%;">
+                        <img src="@img.FullPath"
+                             class="w-100 h-100 object-fit-contain" />
+                             <MudTooltip Text="Xóa ảnh" Arrow="true" Placement="Placement.Top">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               Style="top: 16px; right: 6px;"
+                                               Class="position-absolute bg-white"
+                                               OnClick="@(() => DeleteImageAsync(img.Id))" />
+                             </MudTooltip>
+                    </div>
+                </MudCarouselItem>
+
+            }
+        </MudCarousel>
+    </DialogContent>
+</MudDialog>
+
+<MudExpansionPanel Text="THÊM ẢNH MỚI" Class="fw-bold m-2 shadow rounded" MaxHeight="150" Expanded="false">
+    <div class="d-flex justify-content-center gap-2">
+        <MudFileUpload T="IBrowserFile" FilesChanged="OnFilesSelected" MaxFiles="5" Accept="image/*">
+            <ActivatorContent>
+                <MudButton Variant="Variant.Filled"
+                Color="Color.Primary"
+                StartIcon="@Icons.Material.Filled.CloudUpload">
+                    Chọn ảnh
+                </MudButton>
+            </ActivatorContent>
+        </MudFileUpload>
+
+        <MudButton Variant="Variant.Filled"
+        StartIcon="@Icons.Material.Filled.Save"
+        Color="Color.Info"
+        Size="Size.Medium"
+        OnClick="SaveImagesAsync">
+            Lưu
+        </MudButton>
+    </div>
+
+
+    <MudChipSet T="PreviewImage" AllClosable OnClose="RemoveImage">
+        @foreach (var img in previewImages)
+        {
+            <MudChip Value="@img">
+                <ChildContent>
+                    <img src="@img.PreviewUrl" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-right: 6px;" />
+                    @img.File.Name
+                </ChildContent>
+            </MudChip>
+        }
+    </MudChipSet>
+</MudExpansionPanel>
+
+
+@code {
+
+    [Parameter] public int DetailId { get; set; }
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public List<ImageProductViewModel> Images { get; set; } = new();
+
+    private bool autocycle = false;
+    private List<PreviewImage> previewImages = new();
+    [Parameter]
+    public EventCallback OnImagesSaved { get; set; }
+
+
+    private async Task OnFilesSelected(IBrowserFile file)
+    {
+        var previewUrl = await GetPreviewUrl(file);
+        previewImages.Add(new PreviewImage { File = file, PreviewUrl = previewUrl });
+        StateHasChanged();
+        Console.WriteLine(DetailId);
+    }
+
+
+
+    private async Task<string> GetPreviewUrl(IBrowserFile file)
+    {
+        using var stream = file.OpenReadStream(5 * 1024 * 1024);
+        var buffer = new byte[file.Size];
+        await stream.ReadAsync(buffer);
+        return $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+    }
+
+
+    private void RemoveImage(MudChip<PreviewImage> chip)
+    {
+        previewImages.Remove(chip.Value);
+    }
+
+
+    public class PreviewImage
+    {
+        public IBrowserFile File { get; set; }
+        public string PreviewUrl { get; set; }
+    }
+    private async Task SaveImagesAsync()
+    {
+        if (previewImages.Count == 0)
+        {
+            Snackbar.Add("Vui lòng chọn ít nhất 1 ảnh", Severity.Warning);
+            return;
+        }
+
+        var urls = new List<string>();
+
+        foreach (var preview in previewImages)
+        {
+            var stream = preview.File.OpenReadStream(5 * 1024 * 1024);
+            var content = new MultipartFormDataContent();
+            content.Add(new StreamContent(stream), "file", preview.File.Name);
+
+            var url = await ImageService.UploadImage(content);
+            urls.Add(url);
+        }
+
+        var response = await ProductService.AddImagesToDetailAsync(DetailId, urls);
+        foreach (var res in response)
+        {
+            var severity = res.IsSuccess ? Severity.Success : Severity.Error;
+            Snackbar.Add(res.Message, severity);
+        }
+        previewImages.Clear();
+        StateHasChanged();
+        await ReloadImagesFromDetailAsync(DetailId);
+        if (OnImagesSaved.HasDelegate)
+        {
+            await OnImagesSaved.InvokeAsync();
+        }
+    }
+
+
+    private async Task ReloadImagesFromDetailAsync(int detailId)
+    {
+        var result = await ProductService.GetImageProductDetailsAsync(detailId);
+        Images = result?.ToList() ?? new List<ImageProductViewModel>();
+    }
+
+
+
+    private async Task DeleteImageAsync(int imageId)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá ảnh có ID = {imageId} không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions
+            {
+                CloseButton = true,
+                MaxWidth = MaxWidth.ExtraSmall
+            };
+
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var isSuccess = await ProductService.DeleteImageProductDetailAsync(imageId);
+            if (isSuccess.Success)
+            {
+                Snackbar.Add("Đã xoá ảnh thành công", Severity.Success);
+                await ReloadImagesFromDetailAsync(DetailId);
+
+                if (OnImagesSaved.HasDelegate)
+                {
+                    await OnImagesSaved.InvokeAsync(); // Cập nhật cha
+                }
+            }
+            else
+            {
+                Snackbar.Add("Lỗi khi xoá ảnh", Severity.Error);
+            }
+        }
+
+    }
+
+
+}

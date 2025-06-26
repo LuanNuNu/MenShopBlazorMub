@@ -1,0 +1,199 @@
+﻿@page "/list-product"
+
+@using MenShopBlazor.Services.Product
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.Shared;
+@inject IProductService ProductService
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+
+<MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem xs="12">
+        <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH SẢN PHẨM</MudText>
+
+        @if (showAlert)
+        {
+            <MudAlert Severity="@alertSeverity" Variant="Variant.Outlined" Dense="true" Elevation="0" Class="mb-3">
+                @alertMessage
+            </MudAlert>
+        }
+
+        <MudDataGrid T="ProductViewModel"
+        Items="@products"
+        RowsPerPage="8"
+        Dense="true"
+        Filterable="true"
+        FilterMode="DataGridFilterMode.ColumnFilterRow"
+                     Style="height: calc(100vh - 260px); overflow-y: auto;">
+
+            <Columns>
+                <PropertyColumn Property="x => x.ProductId"
+                                Title="MÃ SP"
+                                Editable="false"/>
+
+                <PropertyColumn Property="x => x.ProductName" Title="TÊN SẢN PHẨM" />
+                <PropertyColumn Property="x => x.Description" Title="MÔ TẢ" Filterable="false"/>
+                <PropertyColumn Property="x => x.Status" Title="TRẠNG THÁI">
+                    <CellTemplate>
+                        <MudIconButton Style="cursor: pointer"
+                        Color="@(context.Item.Status ? Color.Success : Color.Error)"
+                        Variant="Variant.Filled"
+                        OnClick="@(() => ToggleStatusAsync(context.Item))">
+                            @(context.Item.Status ? "Kích hoạt" : "Vô hiệu hóa")
+                        </MudIconButton>
+                    </CellTemplate>
+
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.CategoryName" Title="TÊN DANH MỤC" />
+
+
+                <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                    <CellTemplate >
+                        <MudStack Row>
+                            <MudButton StartIcon="@Icons.Material.Outlined.Edit"
+                                       Size="Size.Small"
+                                       Color="Color.Primary"
+                                       OnClick="@(() => OpenEditDialog(context.Item))">
+                                Sửa
+                            </MudButton>
+
+                            <MudButton StartIcon="@Icons.Material.Outlined.Delete"
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       Class="ml-2"
+                                       OnClick="@(() => DeleteProduct(context.Item.ProductId))">
+                                Xoá
+                            </MudButton>
+
+                            <MudButton StartIcon="@Icons.Material.Filled.DataSaverOn"
+                                       Size="Size.Small"
+                                       Color="Color.Tertiary"
+                                       Class="ml-2"
+                                       OnClick="@(() => GoToDetailPage(context.Item.ProductId))">
+                                Chi tiết
+                            </MudButton>
+
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+
+            <PagerContent>
+                <MudDataGridPager T="ProductViewModel" />
+            </PagerContent>
+        </MudDataGrid>
+
+        <MudButton Color="Color.Primary" Variant="Variant.Outlined"
+        OnClick="OpenCreateDialog" StartIcon="@Icons.Material.Filled.Add" Class="mt-2 mb-3">
+            Thêm sản phẩm
+        </MudButton>
+
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<BreadcrumbItem> _items = new();
+
+    private IEnumerable<ProductViewModel> products = new List<ProductViewModel>();
+    private string? alertMessage;
+    private Severity alertSeverity;
+    private bool showAlert = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Sản phẩm", href: "/list-product", icon: Icons.Material.Filled.List),
+            new BreadcrumbItem("Chi tiết sản phẩm", href: null, disabled: true, icon: Icons.Material.Filled.Info)
+        };
+        await LoadProductsAsync();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        products = await ProductService.GetAllProductsAsync();
+    }
+    private void GoToDetailPage(int productId)
+    {
+        Navigation.NavigateTo($"/product-detail/{productId}");
+    }
+
+    private async Task ShowAlertAsync(string message, Severity severity, int duration = 5000)
+    {
+        alertMessage = message;
+        alertSeverity = severity;
+        showAlert = true;
+        StateHasChanged();
+        await Task.Delay(duration);
+        showAlert = false;
+        StateHasChanged();
+    }
+
+    private async Task DeleteProduct(int id)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá sản phẩm có ID = {id} không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await ProductService.DeleteProductAsync(id);
+            await LoadProductsAsync();
+
+            if (response.Success)
+                await ShowAlertAsync(response.Message, Severity.Success);
+            else
+                await ShowAlertAsync(response.Message, Severity.Error);
+        }
+    }
+
+    private async Task ToggleStatusAsync(ProductViewModel product)
+    {
+        var response = await ProductService.ToggleProductStatusAsync(product.ProductId);
+        await LoadProductsAsync();
+
+        if (response.Success)
+            await ShowAlertAsync(response.Message, Severity.Success);
+        else
+            await ShowAlertAsync(response.Message, Severity.Error);
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<CreateProductDialog>("TẠO SẢN PHẨM", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadProductsAsync();
+            await ShowAlertAsync("Tạo sản phẩm thành công", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(ProductViewModel product)
+    {
+        var parameters = new DialogParameters { ["Product"] = product };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = DialogService.Show<EditProductDiaLog>("CHỈNH SỬA SẢN PHẨM", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadProductsAsync();
+        }
+    }
+}

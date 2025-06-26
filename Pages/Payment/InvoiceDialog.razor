@@ -1,0 +1,105 @@
+﻿@inject IJSRuntime JS
+
+<MudDialog>
+    <DialogContent>
+        <div id="invoice">
+            <MudContainer Class="px-8" MaxWidth="MaxWidth.False">
+                <MudDivider />
+                <MudGrid>
+                    <MudItem xs="12" sm="12" md="12">
+                        <MudImage Src="imgs/Logo.png" Alt="Logo" Style="width: 100px" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="6">
+                        <MudText><b>Chi nhánh: </b> 137 Nguyễn Thị Thập</MudText>
+                        <MudText><b>Ngày: </b> @DateTime.Now</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="6">
+                        <MudText><b>Khách hàng: </b> Huỳnh Ngọc Luận</MudText>
+                        <MudText><b>Nhân viên thu ngân: </b> Lamoon</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="12" md="12">
+                        <MudTable Items="Items" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>STT</MudTh>
+                                <MudTh>Mã SP</MudTh>
+                                <MudTh>Tên SP</MudTh>
+                                <MudTh>SL</MudTh>
+                                <MudTh>Đơn giá</MudTh>
+                                <MudTh>Thành tiền</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="STT">@context.STT</MudTd>
+                                <MudTd DataLabel="Mã SP">@context.MaSP</MudTd>
+                                <MudTd DataLabel="Tên SP">@context.TenSP</MudTd>
+                                <MudTd DataLabel="SL">@context.SoLuong</MudTd>
+                                <MudTd DataLabel="Đơn giá">@context.DonGia.ToString("N0")</MudTd>
+                                <MudTd DataLabel="Thành tiền">@context.ThanhTien.ToString("N0")</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="6">
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="6">
+                        <MudGrid>
+                            <MudItem xs="7">
+                                <MudText><b>Tổng tiền:</b></MudText>
+                                <MudText><b>Tiền khách trả:</b></MudText>
+                                <MudText><b>Giảm giá:</b></MudText>
+                                <MudText><b>Còn lại:</b></MudText>
+                            </MudItem>
+                            <MudItem xs="5" Class="text-end">
+                                <MudText>@Amount.ToString("N0") ₫</MudText>
+                                <MudText>@CustomerPaid.ToString("N0") ₫</MudText>
+                                <MudText>1%</MudText>
+                                <MudText>@Change.ToString("N0") ₫</MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="12" md="12" Class="d-flex justify-content-center">
+                        <MudText><b>Cảm ơn quý khách và hẹn gặp lại!</b></MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </div>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Print">In</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="() => MudDialog.Cancel()">Đóng</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public string OrderId { get; set; }
+    [Parameter] public string TransactionCode { get; set; }
+    [Parameter] public decimal Amount { get; set; }
+    [Parameter] public string OrderInfo { get; set; }
+    [Parameter] public decimal CustomerPaid { get; set; }
+    [Parameter] public decimal Change { get; set; }
+    private async Task Print()
+    {
+        await JS.InvokeVoidAsync("exportInvoiceToPdf", "invoice", $"Invoice_{OrderId}.pdf");
+        MudDialog.Close();
+    }
+    private List<InvoiceItem> Items = new()
+    {
+        new InvoiceItem { STT = 1, MaSP = "PZ001", TenSP = "Pizza Hải sản", SoLuong = 2, DonGia = 120000 },
+        new InvoiceItem { STT = 2, MaSP = "ML002", TenSP = "Mì Ý Bò Bằm", SoLuong = 1, DonGia = 90000 },
+        new InvoiceItem { STT = 3, MaSP = "NU003", TenSP = "Nước suối", SoLuong = 3, DonGia = 10000 }
+    };
+    public class InvoiceItem
+    {
+        public int STT { get; set; }
+        public string MaSP { get; set; }
+        public string TenSP { get; set; }
+        public int SoLuong { get; set; }
+        public decimal DonGia { get; set; }
+        public decimal ThanhTien => SoLuong * DonGia;
+    }
+
+}

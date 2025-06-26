@@ -1,0 +1,102 @@
+﻿@using MenShopBlazor.Services.Category;
+@using MenShopBlazor.DTOs.Category;
+@using MenShopBlazor.Services.Product;
+@using MenShopBlazor.DTOs.Product.UpdateProduct;
+@using MenShopBlazor.DTOs.Product.ViewModel;
+@inject ICategoryService CategoryService
+@inject IProductService ProductService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">CẬP NHẬT SẢN PHẨM</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_product.ProductName"
+                      Label="Tên sản phẩm"
+                      Required="true"
+                      Immediate="true"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+        <MudTextField @bind-Value="_product.Description"
+                      Label="Mô tả"
+                      Required="true"
+                      Immediate="true"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+        <MudSelect T="int"
+                   Label="Danh mục"
+                   Margin="Margin.Dense"
+                   Variant="Variant.Outlined"
+                   @bind-Value="_product.CategoryId"
+                   Required="true">
+            @foreach (var category in categories)
+            {
+                <MudSelectItem Value="@category.CategoryId">@category.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudSwitch T="bool" @bind-Checked="_product.Status" Color="Color.Primary" Label="Hiển thị sản phẩm" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Secondary" OnClick="@Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" OnClick="@Update">Cập nhật</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public ProductViewModel Product { get; set; }
+    private UpdateProductDTO _product = new();
+    private IEnumerable<CategoryModelView> categories = new List<CategoryModelView>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await CategoryService.GetAllCategoriesAsync();
+
+        var matchedCategory = categories.FirstOrDefault(c => c.Name == Product.CategoryName);
+
+        _product = new UpdateProductDTO
+            {
+                ProductName = Product.ProductName,
+                Description = Product.Description,
+                CategoryId = matchedCategory?.CategoryId ?? 0, 
+                Status = Product.Status
+            };
+    }
+
+
+    private async Task Update()
+    {
+        if (string.IsNullOrWhiteSpace(_product.ProductName))
+        {
+            Snackbar.Add("Tên sản phẩm không được để trống", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_product.Description))
+        {
+            Snackbar.Add("Mô tả sản phẩm không được để trống", Severity.Warning);
+            return;
+        }
+        var response = await ProductService.UpdateProductAsync(Product.ProductId, _product);
+        if (response != null && response.IsSuccess)
+        {
+            Snackbar.Add("Cập nhật sản phẩm thành công", Severity.Success);
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add("Cập nhật thất bại", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
