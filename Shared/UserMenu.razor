@@ -1,0 +1,158 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.Account
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.Pages.User
+@using MenShopBlazor.Services.Auth
+@inject CustomAuthProvider AuthProvider
+@inject NavigationManager NavManager
+@inject ITokenService TokenService
+@inject IAdminService AdminService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+@if (_isAuthenticated)
+{
+    <MudMenu OffsetY="true" Class="px-2">
+        <ActivatorContent>
+            <MudStack Row="true" Class="cursor-pointer">
+                <MudAvatar Size="Size.Medium">
+                    <MudImage Src="@(_avatarUrl ?? "imgs/Logo.png")" Alt="avatar" Style="width: 40px; height: 40px;" />
+                </MudAvatar>
+                <MudStack Justify="Justify.Center" Spacing="0">
+                    <MudText Typo="Typo.body1" Color="Color.Dark">Xin chào</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Dark" Class="fw-bold">@_userName</MudText>
+                </MudStack>
+            </MudStack>
+        </ActivatorContent>
+        <ChildContent>
+            <MudMenuItem OnClick="OpenProfileDialog" Icon="@Icons.Material.Filled.Person">Hồ sơ</MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Filled.Settings">Cài đặt</MudMenuItem>
+            <MudDivider />
+            <MudMenuItem OnClick="Logout" Icon="@Icons.Material.Filled.Logout">Đăng xuất</MudMenuItem>
+        </ChildContent>
+    </MudMenu>
+}
+else
+{
+    <MudMenu OffsetY="true" Class="px-2">
+        <ActivatorContent>
+            <MudIconButton Icon="@Icons.Material.Filled.Person" Color="Color.Dark" />
+        </ActivatorContent>
+        <ChildContent>
+            <MudMenuItem Href="/login" Icon="@Icons.Material.Filled.Login">Đăng nhập</MudMenuItem>
+        </ChildContent>
+    </MudMenu>
+}
+
+@code {
+    private bool _isAuthenticated = false;
+    private string? _userName;
+    private string? _avatarUrl;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AuthenticationStateTask == null)
+        {
+            Console.WriteLine("AuthenticationStateTask is NULL!!");
+            return;
+        }
+
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            _isAuthenticated = true;
+            _userName = user.Identity.Name;
+            var userId = user.FindFirst("userId")?.Value;
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var response = await AdminService.GetUsersAsync(userId: userId);
+                if (response?.Data != null)
+                {
+                    var profile = response.Data.FirstOrDefault();
+                    if (profile != null)
+                    {
+                        _userName = profile.FullName;
+                        _avatarUrl = profile.Avatar;
+                    }
+                }
+            }
+        }
+        else
+        {
+            _isAuthenticated = false;
+        }
+        StateHasChanged();
+
+    }
+
+    private async Task Logout()
+    {
+        await TokenService.RemoveTokenAsync();
+        AuthProvider.MarkUserAsLoggedOut();
+        await Task.Delay(400);
+        NavManager.NavigateTo("/login");
+    }
+
+    private async Task OpenProfileDialog()
+    {
+        if (string.IsNullOrEmpty(_userName))
+        {
+            Snackbar.Add("Không xác định được người dùng.", Severity.Warning);
+            return;
+        }
+
+
+        var userId = await TokenService.GetUserIdAsync();
+        if (string.IsNullOrEmpty(userId))
+        {
+            Snackbar.Add("Không tìm thấy ID người dùng.", Severity.Warning);
+            return;
+        }
+
+        var response = await AdminService.GetUsersAsync(userId: userId);
+        if (response?.Data == null || !response.Data.Any())
+        {
+            Snackbar.Add("Không tìm thấy thông tin người dùng.", Severity.Warning);
+            return;
+        }
+
+        var profile = response.Data.First();
+
+        var parameters = new DialogParameters
+            {
+                ["CustomerData"] = new CustomerUpdateDTO
+                {
+                    FullName = profile.FullName,
+                    PhoneNumber = profile.UserPhone,
+                    BirthDate = profile.BirthDate,
+                    Gender = profile.Gender,
+                    Email = profile.UserEmail,
+                    Avatar = profile.Avatar
+                }
+            };
+
+        var options = new DialogOptions
+            {
+                CloseButton = true,
+                MaxWidth = MaxWidth.Medium,
+                FullWidth = true
+            };
+
+        var dialog = DialogService.Show<EditCustomerDialog>("THÔNG TIN CÁ NHÂN", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await OnParametersSetAsync();
+        }
+    }
+
+}

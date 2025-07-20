@@ -6,12 +6,11 @@ namespace MenShopBlazor.Services.UploadImage
     public class UpImg : IUpImg
     {
         private readonly HttpClient _httpClient;
-        private readonly string _apiBaseUrl = "http://localhost:5014/api/UploadImage";
+        private readonly string _apiBaseUrl = "https://localhost:7094/api/UploadImage";
 
-        public UpImg(HttpClient httpClient)
+        public UpImg(IHttpClientFactory httpClientFactory)
         {
-            _httpClient = httpClient;
-
+            _httpClient = httpClientFactory.CreateClient("AuthorizedClient");
         }
 
         public async Task<string> UploadImage(MultipartFormDataContent content)

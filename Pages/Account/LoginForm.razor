@@ -1,0 +1,132 @@
+﻿@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.Services.Account
+@inject IAccountService AccountService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+@using System.ComponentModel.DataAnnotations
+@using MenShopBlazor.Services.Token
+@inject ITokenService TokenService
+
+
+<MudForm Elevation="25" @ref="form" @bind-IsValid="isValid">
+    <MudPaper Class="pa-4">
+        <MudTextField Label="Email hoặc Số điện thoại"
+        @bind-Value="model.Identifier"
+        Required="true"
+        RequiredError="Email hoặc số điện thoại không được để trống"
+                      onkeyup="HandleKeyUp" />
+
+        <MudTextField Label="Mật khẩu"
+        @bind-Value="model.Password"
+        InputType="@PasswordInput"
+        Required="true"
+        RequiredError="Mật khẩu không được để trống"
+        Adornment="Adornment.End"
+        AdornmentIcon="@PasswordInputIcon"
+        OnAdornmentClick="TogglePasswordVisibility"
+        AdornmentAriaLabel="Hiển thị/Ẩn mật khẩu"
+                      OnKeyUp="HandleKeyUp" />
+
+
+        <MudText Class="mt-4">
+            <MudLink Href="/forgot-password" Target="_blank" >
+                Bạn quên mật khẩu?
+            </MudLink>
+        </MudText>
+        <MudStack Spacing="2" Class="my-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+            OnClick="Submit">
+                Đăng nhập
+            </MudButton>
+        </MudStack>
+        <MudText Class="my-4">
+            Bạn chưa có tài khoản?
+            <MudLink OnClick="@ChangeToRegisterTab" Class="pl-1">
+                Đăng ký ngay
+            </MudLink>
+        </MudText>
+
+
+
+    </MudPaper>
+</MudForm>
+
+
+@code {
+    private MudForm form;
+    private bool isValid;
+    private AccountLoginDTO model = new();
+
+    [Parameter]
+    public EventCallback OnSuccess { get; set; }
+    [Parameter]
+    public EventCallback<int> OnChangeTab { get; set; }
+
+    private bool isShowPassword = false;
+    private InputType PasswordInput = InputType.Password;
+    private string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    private void TogglePasswordVisibility()
+    {
+        if (isShowPassword)
+        {
+            isShowPassword = false;
+            PasswordInput = InputType.Password;
+            PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+        }
+        else
+        {
+            isShowPassword = true;
+            PasswordInput = InputType.Text;
+            PasswordInputIcon = Icons.Material.Filled.Visibility;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (!isValid) return;
+
+        try
+        {
+            var response = await AccountService.LoginAsync(model);
+
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Đăng nhập thành công!", Severity.Success);
+
+                await Task.Delay(400); 
+
+                var role = await TokenService.GetRoleAsync();
+                if (role == "Customer")
+                    NavManager.NavigateTo("/branch-products");
+                else
+                    NavManager.NavigateTo("/list-category");
+            }
+
+
+            else
+            {
+                Snackbar.Add(response.Message ?? "Đăng nhập thất bại", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task ChangeToRegisterTab()
+    {
+        if (OnChangeTab.HasDelegate)
+            await OnChangeTab.InvokeAsync(1);
+    }
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await Submit();
+        }
+    }
+
+
+}

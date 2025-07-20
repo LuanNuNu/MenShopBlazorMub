@@ -31,6 +31,46 @@ build_property.EnableCodeStyleSeverity =
 build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Account/Account.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb3VudFxBY2NvdW50LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Account/LoginForm.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb3VudFxMb2dpbkZvcm0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Account/RegisterForm.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb3VudFxSZWdpc3RlckZvcm0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Branch/AdminProductDetailView.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQnJhbmNoXEFkbWluUHJvZHVjdERldGFpbFZpZXcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Branch/BranchProduct.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQnJhbmNoXEJyYW5jaFByb2R1Y3QucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Branch/BranchProductDetail.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQnJhbmNoXEJyYW5jaFByb2R1Y3REZXRhaWwucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Branch/CreateBranchDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQnJhbmNoXENyZWF0ZUJyYW5jaERpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Branch/CustomerProductDetailView.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQnJhbmNoXEN1c3RvbWVyUHJvZHVjdERldGFpbFZpZXcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Branch/EditBranchDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQnJhbmNoXEVkaXRCcmFuY2hEaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Branch/ListBranch.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQnJhbmNoXExpc3RCcmFuY2gucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Category/CreateCategoryDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ2F0ZWdvcnlcQ3JlYXRlQ2F0ZWdvcnlEaWFsb2cucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -41,6 +81,30 @@ build_metadata.AdditionalFiles.CssScope =
 
 [D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Category/ListCategory.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ2F0ZWdvcnlcTGlzdENhdGVnb3J5LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Color/CreateColorDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29sb3JcQ3JlYXRlQ29sb3JEaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Color/EditColorDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29sb3JcRWRpdENvbG9yRGlhbG9nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Color/ListColor.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29sb3JcTGlzdENvbG9yLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Fabric/CreateFabricDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmFicmljXENyZWF0ZUZhYnJpY0RpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Fabric/EditFabricDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmFicmljXEVkaXRGYWJyaWNEaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Fabric/ListFabric.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmFicmljXExpc3RGYWJyaWMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Order/CreateOrder.razor]
@@ -83,12 +147,60 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUHJvZHVjdFxQcm9kdWN0RGV0YWlsLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Size/CreateSizeDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2l6ZVxDcmVhdGVTaXplRGlhbG9nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Size/EditSizeDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2l6ZVxFZGl0U2l6ZURpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/Size/ListSize.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2l6ZVxMaXN0U2l6ZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/User/CreateCustomerDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVXNlclxDcmVhdGVDdXN0b21lckRpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/User/CreateUserDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVXNlclxDcmVhdGVVc2VyRGlhbG9nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/User/EditCustomerDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVXNlclxFZGl0Q3VzdG9tZXJEaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/User/EditEmployeeDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVXNlclxFZGl0RW1wbG95ZWVEaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Pages/User/ListUser.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVXNlclxMaXN0VXNlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Shared/AccountRegisterForm.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXEFjY291bnRSZWdpc3RlckZvcm0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [D:/Dự án tốt nghiệp 2/MenShopBlazor/Shared/ConfirmDeleteDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXENvbmZpcm1EZWxldGVEaWFsb2cucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [D:/Dự án tốt nghiệp 2/MenShopBlazor/Shared/ConfirmDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXENvbmZpcm1EaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Shared/ProductCard.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFByb2R1Y3RDYXJkLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Shared/UnauthorizedHandler.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFVuYXV0aG9yaXplZEhhbmRsZXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/Dự án tốt nghiệp 2/MenShopBlazor/Shared/UserMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFVzZXJNZW51LnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [D:/Dự án tốt nghiệp 2/MenShopBlazor/_Imports.razor]

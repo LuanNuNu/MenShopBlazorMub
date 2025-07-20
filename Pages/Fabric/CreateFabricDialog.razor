@@ -1,0 +1,56 @@
+﻿@using MenShopBlazor.Services.Fabric
+@using MenShopBlazor.DTOs.Fabric
+@using MenShopBlazor.Shared
+@inject IFabricService FabricService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Small" MaxHeight="unset" Style="overflow-y:hidden;">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Thêm chất liệu mới</MudText>
+
+        <MudTextField @bind-Value="Fabric.Name"
+                      Label="Tên chất liệu"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => Fabric.Name)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CreateProductAsync">Thêm</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    private FabricDTO Fabric = new();
+    private async Task CreateProductAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Fabric.Name))
+        {
+            Snackbar.Add("Tên chất liệu không được để trống", Severity.Warning);
+            return;
+        }
+
+        var response = await FabricService.AddFabric(Fabric);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add($"{response.Message}", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add($"{response.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

@@ -52,7 +52,7 @@
     private IMudDialogInstance MudDialog { get; set; }
     [Parameter] public ProductViewModel Product { get; set; }
     private UpdateProductDTO _product = new();
-    private IEnumerable<CategoryModelView> categories = new List<CategoryModelView>();
+    private IEnumerable<CategoryProductViewModel> categories = new List<CategoryProductViewModel>();
 
     protected override async Task OnInitializedAsync()
     {

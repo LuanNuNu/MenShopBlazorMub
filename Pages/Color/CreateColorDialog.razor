@@ -1,0 +1,59 @@
+﻿@using MenShopBlazor.Services.Category;
+@using MenShopBlazor.DTOs.Category;
+@using MenShopBlazor.Services.Product;
+@using MenShopBlazor.DTOs.Product;
+@using MenShopBlazor.DTOs.Color;
+@using MenShopBlazor.Services.Color;
+@inject IColorService ColorService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Small" MaxHeight="unset" Style="overflow-y:hidden;">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Thêm màu mới</MudText>
+
+        <MudTextField @bind-Value="color.Name"
+                      Label="Tên Màu"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => color.Name)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CreateProductAsync">Thêm</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    private ColorDTO color = new();
+    private async Task CreateProductAsync()
+    {
+        if (string.IsNullOrWhiteSpace(color.Name))
+        {
+            Snackbar.Add("Tên màu không được để trống", Severity.Warning);
+            return;
+        }
+
+        var response = await ColorService.AddColor(color);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add($"{response.Message}", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add($"{response.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

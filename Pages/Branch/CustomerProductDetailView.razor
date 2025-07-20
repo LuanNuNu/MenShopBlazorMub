@@ -1,0 +1,169 @@
+﻿@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.Shared
+@inject IJSRuntime JS
+@inject NavigationManager NavManager 
+
+
+<MudContainer Class="mt-5 px-8">
+    <MudBreadcrumbs Items="BreadcrumbItems" />
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            @if (SelectedDetail?.Images?.Any() == true)
+            {
+                <div class="swiper mySwiper2">
+                    <div class="swiper-wrapper">
+                        @foreach (var img in SelectedDetail.Images)
+                        {
+                            <div class="swiper-slide p-2 rounded-3 shadow-sm bg-white">
+                                <img src="@img" alt="Ảnh" class="img-fluid rounded-2" />
+                            </div>
+                        }
+                    </div>
+                    <div class="swiper-button-next"></div>
+                    <div class="swiper-button-prev"></div>
+                </div>
+                <div class="swiper mySwiper mt-2">
+                    <div class="swiper-wrapper">
+                        @foreach (var img in SelectedDetail.Images)
+                        {
+                            <div class="swiper-slide p-1  rounded-2 bg-light" style="cursor: pointer">
+                                <img src="@img" alt="Thumb" class="img-fluid rounded-1" />
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            }
+            else
+            {
+                <MudText Color="Color.Error">Không có ảnh sản phẩm.</MudText>
+            }
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudText Typo="Typo.h6">@SelectedDetail?.ProductName</MudText>
+            <MudText Typo="Typo.h6" Color="Color.Error">
+                <strong>@(SelectedDetail?.SellPrice?.ToString("N0") ?? "Liên hệ") đ</strong>
+            </MudText>
+
+            <MudSelect T="BranchProductDetailModel"
+                       Value="SelectedDetail"
+                       Label="Chọn biến thể"
+                       Dense="true"
+                       Class="mb-2"
+                       ValueChanged="OnVariantChanged">
+                @foreach (var d in ProductDetails.Where(x => x.ColorName == SelectedDetail?.ColorName))
+                {
+                    <MudSelectItem Value="d">
+                        @($"{d.ColorName}, {d.FabricName}, Size: {d.SizeName} - SL: {d.Quantity}")
+                    </MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudText Typo="Typo.subtitle1">Số lượng:</MudText>
+            <MudPaper Class="d-flex align-items-center" Style="width: fit-content; border-radius: 6px;">
+                <MudIconButton Icon="@Icons.Material.Filled.Remove" OnClick="DecreaseQuantity" Disabled="Quantity <= 1" />
+                <MudText Class="mx-2">@Quantity</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="IncreaseQuantity" Disabled="SelectedDetail == null || Quantity >= SelectedDetail.Quantity" />
+            </MudPaper>
+
+            <MudButton Class="mt-2"
+                       StartIcon="@Icons.Material.Filled.AddShoppingCart"
+                       Variant="Variant.Outlined" Color="Color.Tertiary"
+                       OnClick="OnAddToCartClicked">
+                Thêm vào giỏ hàng
+            </MudButton>
+
+            <MudExpansionPanels>
+                <MudExpansionPanel Text="Chi tiết sản phẩm" Expanded="true">
+                    <MudText Typo="Typo.body2">@ProductDescriptionHtml</MudText>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        </MudItem>
+    </MudGrid>
+
+    <MudDivider Class="my-4" />
+    <MudText Typo="Typo.h5" Class="mb-2 d-flex justify-content-center">SẢN PHẨM LIÊN QUAN</MudText>
+
+    @if (RelatedProductColors?.Any() == true)
+    {
+        <ProductCard Products="@RelatedProductColors" OnCardClick="NavigateToDetail" />
+    }
+    else
+    {
+        <MudText Typo="Typo.subtitle2" Color="Color.Error">Không có sản phẩm liên quan.</MudText>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public List<BreadcrumbItem> BreadcrumbItems { get; set; }
+    [Parameter] public List<BranchProductDetailModel> ProductDetails { get; set; }
+    [Parameter] public MarkupString ProductDescriptionHtml { get; set; }
+    [Parameter] public List<ProductColorViewModel> RelatedProductColors { get; set; }
+
+    [Parameter] public EventCallback<ProductColorViewModel> NavigateToDetail { get; set; }
+    [Parameter] public EventCallback AddToCart { get; set; }
+    [Parameter]
+    public string? ColorName { get; set; }
+    private BranchProductDetailModel? SelectedDetail { get; set; }
+    private int Quantity { get; set; } = 1;
+    private bool _initialized = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("color", out var colorValue))
+        {
+            ColorName = colorValue.ToString();
+        }
+
+        Console.WriteLine("Màu từ URL: " + ColorName);
+
+        if (!string.IsNullOrWhiteSpace(ColorName))
+        {
+            SelectedDetail = ProductDetails.FirstOrDefault(x =>
+                string.Equals(x.ColorName, ColorName, StringComparison.OrdinalIgnoreCase))
+                ?? ProductDetails.FirstOrDefault();
+        }
+        else
+        {
+            SelectedDetail = ProductDetails.FirstOrDefault(x => x.Images?.Any() == true)
+                ?? ProductDetails.FirstOrDefault();
+        }
+
+        await RefreshSwiperAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !_initialized)
+        {
+            await RefreshSwiperAsync();
+            _initialized = true;
+        }
+    }
+
+    private async Task RefreshSwiperAsync()
+    {
+        await JS.InvokeVoidAsync("initSwiper");
+    }
+
+    private void IncreaseQuantity() => Quantity = Math.Min(Quantity + 1, SelectedDetail?.Quantity ?? 1);
+    private void DecreaseQuantity() => Quantity = Math.Max(1, Quantity - 1);
+
+    private async Task OnAddToCartClicked()
+    {
+        if (AddToCart.HasDelegate)
+            await AddToCart.InvokeAsync();
+    }
+
+    private async Task OnVariantChanged(BranchProductDetailModel? detail)
+    {
+        SelectedDetail = detail;
+        Quantity = 1;
+        await RefreshSwiperAsync();
+    }
+}

@@ -52,7 +52,7 @@
     private IMudDialogInstance MudDialog { get; set; }
 
     private CreateProductDTO product = new();
-    private IEnumerable<CategoryModelView> categories = new List<CategoryModelView>();
+    private IEnumerable<CategoryProductViewModel> categories = new List<CategoryProductViewModel>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -73,13 +73,14 @@
             return;
         }
         var response = await ProductService.CreateProductAsync(product);
-        if (response != null)
+        if (response.IsSuccess)
         {
+            Snackbar.Add($"{response.Message}", Severity.Success);
             MudDialog.Close(DialogResult.Ok(true));
         }
         else
         {
-            Snackbar.Add("Tạo sản phẩm thất bại", Severity.Error);
+            Snackbar.Add($"{response.Message}", Severity.Error);
         }
     }
 

@@ -12,24 +12,25 @@ using Newtonsoft.Json;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Newtonsoft.Json.Linq;
+using MenShopBlazor.Shared;
 
 namespace MenShopBlazor.Services.Product
 {
     public class ProductService : IProductService
     {
-        private readonly HttpClient _http;
-        private const string baseUrl = "http://localhost:5014/api/Product";
+        private readonly HttpClient _httpClient;
+        private const string baseUrl = "https://localhost:7094/api/Product"; 
 
-        public ProductService(HttpClient httpClient)
+        public ProductService(IHttpClientFactory httpClientFactory)
         {
-            _http = httpClient;
+            _httpClient = httpClientFactory.CreateClient("AuthorizedClient");
         }
 
         public async Task<IEnumerable<ProductViewModel>> GetAllProductsAsync()
         {
             try
             {
-                var response = await _http.GetAsync(baseUrl);
+                var response = await _httpClient.GetAsync(baseUrl);
                 var json = await response.Content.ReadAsStringAsync();
                 return JsonConvert.DeserializeObject<List<ProductViewModel>>(json) ?? new();
             }
@@ -43,7 +44,7 @@ namespace MenShopBlazor.Services.Product
         {
             try
             {
-                var response = await _http.GetAsync($"{baseUrl}/{id}");
+                var response = await _httpClient.GetAsync($"{baseUrl}/{id}");
                 var json = await response.Content.ReadAsStringAsync();
                 return JsonConvert.DeserializeObject<ProductViewModel>(json);
             }
@@ -57,7 +58,7 @@ namespace MenShopBlazor.Services.Product
         {
             try
             {
-                var response = await _http.GetAsync($"{baseUrl}/Category/{categoryId}");
+                var response = await _httpClient.GetAsync($"{baseUrl}/category/{categoryId}");
                 var json = await response.Content.ReadAsStringAsync();
                 return JsonConvert.DeserializeObject<List<ProductViewModel>>(json) ?? new();
             }
@@ -71,7 +72,7 @@ namespace MenShopBlazor.Services.Product
         {
             try
             {
-                var response = await _http.GetAsync($"{baseUrl}/productDetails/{productId}");
+                var response = await _httpClient.GetAsync($"{baseUrl}/productDetails/{productId}");
                 var json = await response.Content.ReadAsStringAsync();
                 return JsonConvert.DeserializeObject<List<ProductDetailViewModel>>(json) ?? new();
             }
@@ -86,7 +87,7 @@ namespace MenShopBlazor.Services.Product
         {
             try
             {
-                var response = await _http.GetAsync($"{baseUrl}/productDetails/images/{productDetailId}");
+                var response = await _httpClient.GetAsync($"{baseUrl}/productDetails/images/{productDetailId}");
                 var json = await response.Content.ReadAsStringAsync();
                 return JsonConvert.DeserializeObject<List<ImageProductViewModel>>(json) ?? new();
             }
@@ -102,7 +103,7 @@ namespace MenShopBlazor.Services.Product
                 var json = JsonConvert.SerializeObject(dto);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await _http.PostAsync($"{baseUrl}/create", content);
+                var response = await _httpClient.PostAsync($"{baseUrl}/create", content);
                 var result = await response.Content.ReadAsStringAsync();
 
                 return JsonConvert.DeserializeObject<ProductResponseDTO>(result);
@@ -120,7 +121,7 @@ namespace MenShopBlazor.Services.Product
                 var json = JsonConvert.SerializeObject(dto);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await _http.PostAsync($"{baseUrl}/add-detail", content);
+                var response = await _httpClient.PostAsync($"{baseUrl}/add-detail", content);
                 var result = await response.Content.ReadAsStringAsync();
 
                 return JsonConvert.DeserializeObject<CreateProductDetailResponse>(result)
@@ -151,7 +152,7 @@ namespace MenShopBlazor.Services.Product
                 var json = JsonConvert.SerializeObject(imageUrls);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await _http.PostAsync($"{baseUrl}/add-images/{detailId}", content);
+                var response = await _httpClient.PostAsync($"{baseUrl}/add-images/{detailId}", content);
                 var result = await response.Content.ReadAsStringAsync();
 
                 return JsonConvert.DeserializeObject<List<CreateImageResponse>>(result)
@@ -174,7 +175,7 @@ namespace MenShopBlazor.Services.Product
                 var json = JsonConvert.SerializeObject(dto);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await _http.PutAsync($"{baseUrl}/product/{productId}", content);
+                var response = await _httpClient.PutAsync($"{baseUrl}/product/{productId}", content);
                 var result = await response.Content.ReadAsStringAsync();
 
                 return JsonConvert.DeserializeObject<ProductResponseDTO>(result);
@@ -192,7 +193,7 @@ namespace MenShopBlazor.Services.Product
                 var json = JsonConvert.SerializeObject(dto);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await _http.PutAsync($"{baseUrl}/product-detail", content);
+                var response = await _httpClient.PutAsync($"{baseUrl}/product-detail", content);
                 var result = await response.Content.ReadAsStringAsync();
 
                 return JsonConvert.DeserializeObject<ProductDetailResponse>(result)
@@ -211,7 +212,7 @@ namespace MenShopBlazor.Services.Product
                 var json = JsonConvert.SerializeObject(images);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await _http.PutAsync($"{baseUrl}/product-detail/{detailId}/images", content);
+                var response = await _httpClient.PutAsync($"{baseUrl}/product-detail/{detailId}/images", content);
                 var result = await response.Content.ReadAsStringAsync();
 
                 return JsonConvert.DeserializeObject<ImageResponse>(result)
@@ -225,96 +226,38 @@ namespace MenShopBlazor.Services.Product
         }
 
 
-        public async Task<ApiMessageReponse> ToggleProductStatusAsync(int productId)
+        public async Task<ApiResponseModel<object>> ToggleProductStatusAsync(int productId)
         {
-            var response = await _http.PutAsync($"{baseUrl}/updateStatus/{productId}", null);
-            if (response.IsSuccessStatusCode)
-            {
-                return new ApiMessageReponse { Success = true, Message = "Cập nhật trạng thái thành công" };
-            }
-            return new ApiMessageReponse { Success = false, Message = "Cập nhật thất bại" };
+            var emptyContent = new StringContent("", Encoding.UTF8, "application/json");
+
+            return await HttpHelper.SendRequestAsync<object>(() =>
+                _httpClient.PutAsync($"{baseUrl}/updateStatus/{productId}", emptyContent)
+            );
         }
-        public async Task<ApiMessageReponse> DeleteProductAsync(int productId)
+
+        public async Task<ApiResponseModel<object>> DeleteProductAsync(int productId)
         {
-            var response = await _http.DeleteAsync($"{baseUrl}/{productId}");
-            var content = await response.Content.ReadAsStringAsync();
-
-            string userMessage;
-
-            if (response.IsSuccessStatusCode)
-            {
-                userMessage = string.IsNullOrWhiteSpace(content)
-                    ? "Xoá sản phẩm thành công."
-                    : content;
-            }
-            else
-            {
-                try
-                {
-                    var obj = JsonConvert.DeserializeObject<JObject>(content);
-                    userMessage = obj?["message"]?.ToString()
-                                  ?? "Không thể xoá sản phẩm do có lỗi phát sinh.";
-                }
-                catch
-                {
-                    userMessage = "Không thể xoá sản phẩm do có lỗi phát sinh.";
-                }
-            }
-
-            return new ApiMessageReponse
-            {
-                Success = response.IsSuccessStatusCode,
-                Message = userMessage
-            };
+            return await HttpHelper.SendRequestAsync<object>(() =>
+                _httpClient.DeleteAsync($"{baseUrl}/{productId}")
+            );
         }
-        public async Task<ApiMessageReponse> DeleteProductDetailAsync(int detailId)
+
+        public async Task<ApiResponseModel<object>> DeleteProductDetailAsync(int detailId)
         {
-            var response = await _http.DeleteAsync($"{baseUrl}/details/{detailId}");
-            var content = await response.Content.ReadAsStringAsync();
-
-            string userMessage;
-
-            if (response.IsSuccessStatusCode)
-            {
-                userMessage = string.IsNullOrWhiteSpace(content)
-                    ? "Xoá chi tiết sản phẩm thành công."
-                    : content;
-            }
-            else
-            {
-                try
-                {
-                    var obj = JsonConvert.DeserializeObject<JObject>(content);
-                    userMessage = obj?["message"]?.ToString()
-                                  ?? "Không thể xoá chi tiết sản phẩm do có lỗi phát sinh.";
-                }
-                catch
-                {
-                    userMessage = "Không thể xoá chi tiết sản phẩm do có lỗi phát sinh.";
-                }
-            }
-
-            return new ApiMessageReponse
-            {
-                Success = response.IsSuccessStatusCode,
-                Message = userMessage
-            };
+            return await HttpHelper.SendRequestAsync<object>(() =>
+                _httpClient.DeleteAsync($"{baseUrl}/details/{detailId}")
+            );
         }
 
 
-        //up
-        public async Task<ApiMessageReponse> DeleteImageProductDetailAsync(int imageId)
+        public async Task<ApiResponseModel<object>> DeleteImageProductDetailAsync(int imageId)
         {
-            var response = await _http.DeleteAsync($"{baseUrl}/details/images/{imageId}");
-            var message = await response.Content.ReadAsStringAsync();
-
-            return new ApiMessageReponse
-            {
-                Success = response.IsSuccessStatusCode,
-                Message = string.IsNullOrWhiteSpace(message)
-                    ? (response.IsSuccessStatusCode ? "Xoá ảnh chi tiết sản phẩm thành công." : "Lỗi khi xoá ảnh chi tiết.")
-                    : message
-            };
+            return await HttpHelper.SendRequestAsync<object>(() =>
+                 _httpClient.DeleteAsync($"{baseUrl}/details/images/{imageId}")
+            );
+         
         }
+
+
     }
 }

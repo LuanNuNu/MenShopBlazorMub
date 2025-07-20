@@ -7,20 +7,21 @@ using Newtonsoft.Json;
 using MenShopBlazor.DTOs.Category;
 using MenShopBlazor.DTOs;
 using MenShopBlazor.Services.Category;
+using MenShopBlazor.Shared;
 
 namespace MenShopBlazor.Services
 {
     public class CategoryService : ICategoryService
     {
         private readonly HttpClient _httpClient;
-        private const string baseApiUrl = "http://localhost:5014/api/Category";
+        private const string baseApiUrl = "https://localhost:7094/api/CategoryProduct";
 
-        public CategoryService(HttpClient httpClient)
+        public CategoryService(IHttpClientFactory httpClientFactory)
         {
-            _httpClient = httpClient;
+            _httpClient = httpClientFactory.CreateClient("AuthorizedClient");
         }
 
-        public async Task<IEnumerable<CategoryModelView>> GetAllCategoriesAsync()
+        public async Task<IEnumerable<CategoryProductViewModel>> GetAllCategoriesAsync()
         {
             try
             {
@@ -29,21 +30,24 @@ namespace MenShopBlazor.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    return JsonConvert.DeserializeObject<List<CategoryModelView>>(content)
-                        ?? new List<CategoryModelView>();
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponseModel<List<CategoryProductViewModel>>>(content);
+                    if (apiResponse != null && apiResponse.IsSuccess && apiResponse.Data != null)
+                    {
+                        return apiResponse.Data;
+                    }
                 }
 
-                Console.WriteLine($"Lỗi lấy danh sách danh mục: {response.StatusCode}");
-                return new List<CategoryModelView>();
+                Console.WriteLine($"Lỗi lấy danh sách danh mục: {content}");
+                return new List<CategoryProductViewModel>();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Lỗi lấy danh sách danh mục: {ex.Message}");
-                return new List<CategoryModelView>();
+                return new List<CategoryProductViewModel>();
             }
         }
 
-        public async Task<CategoryModelView?> GetCategoryByIdAsync(int id)
+        public async Task<CategoryProductViewModel?> GetCategoryByIdAsync(int id)
         {
             try
             {
@@ -52,10 +56,14 @@ namespace MenShopBlazor.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    return JsonConvert.DeserializeObject<CategoryModelView>(content);
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponseModel<CategoryProductViewModel>>(content);
+                    if (apiResponse != null && apiResponse.IsSuccess)
+                    {
+                        return apiResponse.Data;
+                    }
                 }
 
-                Console.WriteLine($"Lỗi lấy danh mục theo ID: {response.StatusCode}");
+                Console.WriteLine($"Lỗi lấy danh mục theo ID: {content}");
                 return null;
             }
             catch (Exception ex)
@@ -65,84 +73,34 @@ namespace MenShopBlazor.Services
             }
         }
 
-        public async Task<CategoryModelView?> CreateCategoryAsync(CreateCategoryDTO category)
+        public async Task<ApiResponseModel<object>> CreateCategoryAsync(CreateUpdateCategoryDTO category)
         {
-            try
-            {
-                var json = JsonConvert.SerializeObject(category);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync(baseApiUrl, content);
-                var responseContent = await response.Content.ReadAsStringAsync();
+            var json = JsonConvert.SerializeObject(category);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                if (response.IsSuccessStatusCode)
-                {
-                    return JsonConvert.DeserializeObject<CategoryModelView>(responseContent);
-                }
-
-                Console.WriteLine($"Lỗi tạo danh mục: {responseContent}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Lỗi tạo danh mục: {ex.Message}");
-            }
-
-            return null;
+            return await HttpHelper.SendRequestAsync<object>(() =>
+                _httpClient.PostAsync(baseApiUrl, content)
+            );
         }
 
-        public async Task<CategoryModelView?> UpdateCategoryAsync(CategoryModelView category)
+
+        public async Task<ApiResponseModel<object>> UpdateCategoryAsync(int categoryId,CreateUpdateCategoryDTO category)
         {
-            try
-            {
-                var json = JsonConvert.SerializeObject(category);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PutAsync($"{baseApiUrl}/{category.CategoryId}", content);
-                var responseContent = await response.Content.ReadAsStringAsync();
+            var json = JsonConvert.SerializeObject(category);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                if (response.IsSuccessStatusCode)
-                {
-                    return JsonConvert.DeserializeObject<CategoryModelView>(responseContent);
-                }
-
-                Console.WriteLine($"Lỗi cập nhật danh mục: {responseContent}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Lỗi cập nhật danh mục: {ex.Message}");
-            }
-
-            return null;
+            return await HttpHelper.SendRequestAsync<object>(() =>
+                _httpClient.PutAsync($"{baseApiUrl}/{categoryId}", content)
+            );
         }
 
-        public async Task<ApiMessageReponse> DeleteCategoryAsync(int id)
+        public async Task<ApiResponseModel<object>> DeleteCategoryAsync(int id)
         {
-            try
-            {
-                var response = await _httpClient.DeleteAsync($"{baseApiUrl}/{id}");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return new ApiMessageReponse
-                    {
-                        Success = true,
-                        Message = string.IsNullOrWhiteSpace(responseContent) ? "Xoá thành công." : responseContent
-                    };
-                }
-
-                return new ApiMessageReponse
-                {
-                    Success = false,
-                    Message = string.IsNullOrWhiteSpace(responseContent) ? "Đã xảy ra lỗi khi xoá danh mục." : responseContent
-                };
-            }
-            catch (Exception ex)
-            {
-                return new ApiMessageReponse
-                {
-                    Success = false,
-                    Message = $"Lỗi hệ thống: {ex.Message}"
-                };
-            }
+            return await HttpHelper.SendRequestAsync<object>(() =>
+                _httpClient.DeleteAsync($"{baseApiUrl}/{id}")
+            );
         }
+
     }
 }
+

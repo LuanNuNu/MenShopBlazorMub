@@ -1,0 +1,325 @@
+﻿@page "/"
+@page "/branch-products"
+@page "/branch-products/{BranchId:int}"
+
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.DTOs
+@using MenShopBlazor.Shared
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.Services.Branch
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Services.Token
+@inject IBranchService BranchService
+@inject ITokenService TokenService
+@inject IAdminService AdminService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+@implements IDisposable
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+
+@if (!_loading)
+{ 
+    @if (role == "Admin" || role == "BranchManager")
+    {
+        <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+            <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+            <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH SẢN PHẨM </MudText>
+            <MudDataGrid T="BranchProductModel" Items="@products" Dense="true">
+                <Columns>
+                    <PropertyColumn Property="x => x.ProductId" Title="Mã SP" />
+                    <PropertyColumn Property="x => x.ProductName" Title="TÊN SẢN PHẨM" />
+                    <TemplateColumn Title="GIÁ">
+                        <CellTemplate>
+                            @if (context.Item.Price.HasValue)
+                            {
+                                @string.Format("{0:N0} ₫", context.Item.Price)
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.CloudSync" Color="Color.Warning" />
+                            }
+                        </CellTemplate>
+
+                    </TemplateColumn>
+                    <TemplateColumn Title="TÙY CHỈNH">
+                        <CellTemplate>
+                            <MudButton StartIcon="@Icons.Material.Filled.DataSaverOn"
+                                       Size="Size.Small"
+                                       Color="Color.Tertiary"
+                                       OnClick="@(() => NavigateToDetail(context.Item))">
+                                Chi tiết
+                            </MudButton>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+                <PagerContent>
+                    <MudDataGridPager T="BranchProductModel" />
+                </PagerContent>
+            </MudDataGrid>
+        </MudContainer>
+    }
+    else
+    {
+        <MudContainer Class="mt-5 px-8">
+            <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+            <ProductCard Products="productColors"
+                         OnCardClick="NavigateToDetail"
+                         ShowScrollToTop="false" />
+        </MudContainer>
+    }
+
+}
+
+
+@code {
+    [Parameter]
+    public int? BranchId { get; set; }
+
+    private List<BranchProductModel> products = [];
+    private bool _loading = false;
+    private string? role;
+    private bool _isLoggedIn = false;
+    private List<BreadcrumbItem> _items = new();
+    private List<ProductColorViewModel> productColors = new();
+    [Parameter] public int? CategoryId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        NavManager.LocationChanged += OnLocationChanged;
+        _loading = true;
+        StateHasChanged();
+
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("categoryId", out var cid) && int.TryParse(cid, out var parsedCategoryId))
+            CategoryId = parsedCategoryId;
+
+        role = await TokenService.GetRoleAsync();
+        _isLoggedIn = !string.IsNullOrWhiteSpace(role);
+
+        await EnsureBranchIdAsync();
+
+        BranchViewModel? branch = null;
+        if (BranchId != null && BranchId > 0)
+        {
+            var branchResponse = await BranchService.GetBranchByIdAsync(BranchId.Value);
+            branch = branchResponse?.Data;
+
+            if (branch == null && _isLoggedIn && role != "Admin")
+            {
+                Snackbar.Add("Không tìm thấy thông tin chi nhánh.", Severity.Error);
+                _loading = false;
+                return;
+            }
+        }
+
+        SetBreadcrumb(branch);
+        await LoadBranchProductsAsync();
+
+        _loading = false;
+    }
+
+
+    private void SetBreadcrumb(BranchViewModel branch = null)
+    {
+        _items = new List<BreadcrumbItem>
+    {
+        new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home)
+    };
+
+        if (role == "Admin")
+        {
+            _items.Add(new BreadcrumbItem("Danh sách chi nhánh", href: "/list-branches", icon: Icons.Material.Filled.List));
+            _items.Add(new BreadcrumbItem($"Sản phẩm - {branch?.Name ?? "Không rõ"}", href: null, disabled: true, icon: Icons.Material.Filled.Storefront));
+        }
+        else if (role == "BranchManager")
+        {
+            _items.Add(new BreadcrumbItem($"Sản phẩm - {branch?.Name ?? "Không rõ"}", href: null, disabled: true, icon: Icons.Material.Filled.Storefront));
+        }
+        else
+        {
+            // Customer (có thể chưa đăng nhập)
+            _items.Add(new BreadcrumbItem("Sản phẩm", href: null, disabled: true, icon: Icons.Material.Filled.Storefront));
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        ReadQueryString();
+        if (!_loading)
+        {
+            _loading = true;
+            await LoadBranchProductsAsync();
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+    private void ReadQueryString()
+    {
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("categoryId", out var cid) && int.TryParse(cid, out var parsedCategoryId))
+        {
+            CategoryId = parsedCategoryId;
+        }
+    }
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        var uri = NavManager.ToAbsoluteUri(e.Location);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("categoryId", out var cid) && int.TryParse(cid, out var parsedCategoryId))
+        {
+            CategoryId = parsedCategoryId;
+        }
+        else
+        {
+            CategoryId = null;
+        }
+
+        _loading = true;
+        await LoadBranchProductsAsync();
+        _loading = false;
+
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavManager.LocationChanged -= OnLocationChanged;
+    }
+
+    /// <summary>
+    /// Đảm bảo BranchId luôn có giá trị
+    /// </summary>
+    private async Task EnsureBranchIdAsync()
+    {
+        if (BranchId != null && BranchId > 0)
+            return;
+
+        if (role == "Customer")
+        {
+            var branches = await BranchService.GetAllBranchesAsync();
+            var onlineBranch = branches?.Data?.FirstOrDefault(b => b.IsOnline);
+            if (onlineBranch != null)
+            {
+                BranchId = onlineBranch.BranchId;
+                return;
+            }
+        }
+        else if (!string.IsNullOrEmpty(role)) 
+        {
+            var userResponse = await AdminService.GetCurrentUserAsync();
+            var user = userResponse?.Data;
+            if (user?.BranchId != null)
+            {
+                BranchId = user.BranchId;
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Load danh sách sản phẩm chi nhánh
+    /// </summary>
+    private async Task LoadBranchProductsAsync()
+    {
+        try
+        {
+            var response = await BranchService.GetBranchProduct(BranchId);
+
+            if (response == null || !response.IsSuccess)
+            {
+                if (_isLoggedIn && role != "Admin")
+                {
+                    Snackbar.Add("Không thể tải danh sách sản phẩm!", Severity.Error);
+                }
+                products = [];
+                productColors = [];
+                return;
+            }
+
+            var list = response.Data ?? [];
+
+ 
+            if (CategoryId.HasValue)
+            {
+                list = list.Where(p => p.CategoryProductID == CategoryId.Value).ToList();
+            }
+
+            products = list;
+
+                var detailTasks = list.Select(async product =>
+                {
+                    var detailRes = await BranchService.GetBranchProductDetail(BranchId, product.ProductId);
+                    if (detailRes == null || !detailRes.IsSuccess) return new List<ProductColorViewModel>();
+
+                    var details = detailRes.Data ?? [];
+
+                    return details
+                        .GroupBy(d => d.ColorName)
+                        .Select(g => new ProductColorViewModel
+                        {
+                            ProductId = product.ProductId,
+                            ProductName = product.ProductName,
+                            ColorName = g.Key,
+                            CategoryProductID = product.CategoryProductID,
+                            Price = g.FirstOrDefault()?.SellPrice ?? product.Price,
+                            Thumbnail = g.FirstOrDefault()?.Images?.FirstOrDefault() ?? product.Thumbnail
+                        }).ToList();
+                });
+
+                var colorGroups = await Task.WhenAll(detailTasks);
+                productColors = colorGroups.SelectMany(x => x).ToList();
+            
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    /// <summary>
+    /// Điều hướng đến trang chi tiết sản phẩm
+    /// </summary>
+    private void NavigateToDetail(object item)
+    {
+        switch (item)
+        {
+            case BranchProductModel model:
+                var url1 = UrlHelper.GenerateProductDetailUrl(
+                    model.ProductId,
+                    model.ProductName ?? "",
+                    model.CategoryProductID,
+                    BranchId,
+                    null
+                );
+                NavManager.NavigateTo(url1);
+                break;
+
+            case ProductColorViewModel color:
+                var url2 = UrlHelper.GenerateProductDetailUrl(
+                    color.ProductId,
+                    color.ProductName ?? "",
+                    color.CategoryProductID,
+                    BranchId,
+                    color.ColorName
+                );
+                NavManager.NavigateTo(url2);
+                break;
+
+            default:
+                Snackbar.Add("Không xác định được loại dữ liệu sản phẩm.", Severity.Warning);
+                break;
+        }
+    }
+}
+
+
+

@@ -3,17 +3,19 @@ using MenShopBlazor.DTOs.Order.CreateOrder;
 using MenShopBlazor.DTOs.Order.OrderReponse;
 using Newtonsoft.Json;
 using System.Text;
+using System.Net.Http;
 
 namespace MenShopBlazor.Services.Order
 {
     public class OrderService : IOrderService
     {
-        private readonly HttpClient _http;
-        private const string baseUrl = "http://localhost:5014/api/Order";
+        private readonly HttpClient _httpClient;
+        private const string baseUrl = "https://localhost:7094/api/Order";
 
-        public OrderService(HttpClient httpClient)
+        public OrderService(IHttpClientFactory httpClientFactory)
         {
-            _http = httpClient;
+            _httpClient = httpClientFactory.CreateClient("AuthorizedClient");
+        
         }
         public async Task<OrderResponseDTO> CreateOrderAsync(CreateOrderDTO dto)
         {
@@ -22,7 +24,7 @@ namespace MenShopBlazor.Services.Order
                 var json = JsonConvert.SerializeObject(dto);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await _http.PostAsync($"{baseUrl}/createOrder", content);
+                var response = await _httpClient.PostAsync($"{baseUrl}/createOrder", content);
                 var result = await response.Content.ReadAsStringAsync();
 
                 return JsonConvert.DeserializeObject<OrderResponseDTO>(result);

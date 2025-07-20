@@ -1,0 +1,88 @@
+﻿@using MenShopBlazor.Services.Branch;
+@using MenShopBlazor.DTOs.Branch;
+@using MenShopBlazor.Services.Admin;
+@using MenShopBlazor.DTOs.Product;
+@inject IBranchService BranchService
+@inject IAdminService AdminService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">CẬP NHẬT CHI NHÁNH</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_branch.Name"
+                      Label="Tên Chi nhánh"
+                      Required="true"
+                      Immediate="true"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+        <MudTextField @bind-Value="_branch.Address"
+                      Label="Địa chỉ"
+                      Required="true"
+                      Immediate="true"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+        <MudRadioGroup T="bool" @bind-Value="_branch.IsOnline">
+            <MudRadio Value="true" Label="Chi nhánh Online" />
+            <MudRadio Value="false" Label="Chi nhánh Offline" />
+        </MudRadioGroup>
+
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Secondary" OnClick="@Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" OnClick="@Update">Cập nhật</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public BranchViewModel branch { get; set; }
+
+    [Parameter]
+    public CreateUpdateBranchDTO _branch { get; set; } = new();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branch = new CreateUpdateBranchDTO
+        {
+            Name = branch.Name,
+            Address = branch.Address,
+            IsOnline = branch.IsOnline
+
+        };
+    }
+
+    private async Task Update()
+    {
+        if (string.IsNullOrWhiteSpace(branch.Name))
+        {
+            Snackbar.Add("Tên chi nhánh không được để trống", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(branch.Address))
+        {
+            Snackbar.Add("Địa chỉ không được để trống", Severity.Warning);
+            return;
+        }
+
+        var response = await BranchService.UpdateBranchAsync(branch.BranchId,_branch);
+
+        if (response != null && response.IsSuccess)
+        {
+            Snackbar.Add("Cập nhật Chi nhánh thành công", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add("Cập nhật Chi nhánh thất bại: " + response?.Message, Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

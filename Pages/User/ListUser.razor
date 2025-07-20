@@ -1,0 +1,288 @@
+﻿@page "/list-user"
+
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.DTOs
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Shared
+@inject IAdminService AdminService
+@inject NavigationManager Navigation
+@inject ITokenService TokenService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+    <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    </MudOverlay>
+@if (!_loading)
+{
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+        <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+        <MudText Typo="Typo.h5" Class="mb-4">QUẢN LÝ NGƯỜI DÙNG</MudText>
+
+        <MudTabs Rounded="true" Elevation="0" @bind-ActivePanelIndex="@_activeTab">
+            <MudTabPanel Text="Khách hàng">
+                @if (_customers is not null)
+                {
+                    <MudDataGrid T="UserViewModel"
+                    Items="@_customers"
+                    RowsPerPage="10"
+                    Dense="true"
+                    Filterable="true"
+                    FilterMode="DataGridFilterMode.ColumnFilterRow">
+                        <Columns>
+                            <PropertyColumn Property="x => x.FullName" Title="Họ và tên" />
+                            <PropertyColumn Property="x => x.UserEmail" Title="Email" />
+                            <PropertyColumn Property="x => x.UserPhone" Title="SĐT" />
+                            <PropertyColumn Property="x => x.Gender" Title="Giới tính">
+                                <CellTemplate Context="context">
+                                    @(
+                            context.Item.Gender.HasValue
+                                    ? (context.Item.Gender.Value ? "Nam" : "Nữ")
+                                    : "Chưa rõ"
+                            )
+                                </CellTemplate>
+                            </PropertyColumn>
+                            <TemplateColumn Title="Tùy chỉnh">
+                                <CellTemplate Context="context">
+                                    <MudButton StartIcon="@Icons.Material.Outlined.Edit"
+                                    Size="Size.Small"
+                                    Color="Color.Primary"
+                                    OnClick="@(() => OpenEditCustomerDialog(context.Item))">
+                                        Sửa
+                                    </MudButton>
+                                </CellTemplate>
+                            </TemplateColumn>
+                        </Columns>
+                        <PagerContent>
+                            <MudDataGridPager T="UserViewModel" />
+                        </PagerContent>
+                    </MudDataGrid>
+                }
+                <MudButton Color="Color.Primary"
+                Variant="Variant.Outlined"
+                StartIcon="@Icons.Material.Filled.PersonAdd"
+                Class="mt-3"
+                OnClick="OpenCreateCustomerDialog">
+                    Thêm khách hàng
+                </MudButton>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Nhân viên">
+                @if (_employees is not null)
+                {
+                    <MudDataGrid T="UserViewModel"
+                    Items="@_employees"
+                    RowsPerPage="10"
+                    Dense="true"
+                    Filterable="true"
+                    FilterMode="DataGridFilterMode.ColumnFilterRow">
+                        <Columns>
+                            <PropertyColumn Property="x => x.FullName" Title="Họ và tên" />
+                            <PropertyColumn Property="x => x.UserEmail" Title="Email" />
+                            <PropertyColumn Property="x => x.UserPhone" Title="SĐT" />
+                            <PropertyColumn Property="x => x.BranchId" Title="Chi nhánh" />
+                            <PropertyColumn Property="x => x.UserRole" Title="Vai trò" />
+                            <PropertyColumn Property="x => x.Gender" Title="Giới tính">
+                                <CellTemplate Context="context">
+                                    @(
+                            context.Item.Gender.HasValue
+                                    ? (context.Item.Gender.Value ? "Nam" : "Nữ")
+                                    : "Chưa rõ"
+                            )
+                                </CellTemplate>
+                            </PropertyColumn>
+                            <TemplateColumn Title="Tùy chỉnh">
+                                <CellTemplate Context="context">
+                                    <MudButton StartIcon="@Icons.Material.Outlined.Edit"
+                                    Size="Size.Small"
+                                    Color="Color.Primary"
+                                    OnClick="@(() => OpenEditEmployeeDialog(context.Item))">
+                                        Sửa
+                                    </MudButton>
+                                </CellTemplate>
+                            </TemplateColumn>
+                        </Columns>
+                        <PagerContent>
+                            <MudDataGridPager T="UserViewModel" />
+                        </PagerContent>
+                    </MudDataGrid>
+                }
+                <MudButton Color="Color.Primary"
+                       Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                       Class="mt-3"
+                       OnClick="OpenCreateEmployeeDialog">
+                Thêm nhân viên
+            </MudButton>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+}
+@code {
+    private IEnumerable<UserViewModel> _customers;
+    private IEnumerable<UserViewModel> _employees;
+    private int _activeTab = 0;
+    private List<BreadcrumbItem> _items = new();
+    private bool _loading = false; 
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        await Task.WhenAll(
+            LoadCustomersAsync(),
+            LoadEmployeesAsync()
+        );
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadCustomersAsync()
+    {
+        var loadTask = AdminService.GetUsersAsync();
+        var delayTask = Task.Delay(500);
+        await Task.WhenAll(loadTask, delayTask);
+
+        var response = loadTask.Result;
+
+        if (response.IsSuccess)
+        {
+            _customers = response.Data?.Where(x => x.UserRole == "Customer").ToList();
+        }
+        else
+        {
+            Snackbar.Add(response.Message, Severity.Error);
+        }
+    }
+
+    private async Task LoadEmployeesAsync()
+    {
+        var userRole = await TokenService.GetRoleAsync();
+
+        var loadTask = AdminService.GetUsersAsync();
+        var delayTask = Task.Delay(500);
+        await Task.WhenAll(loadTask, delayTask);
+
+        var response = loadTask.Result;
+
+        if (response.IsSuccess)
+        {
+            if (userRole == "BranchManager")
+            {
+                var currentUser = await AdminService.GetCurrentUserAsync();
+                var branchId = currentUser.Data?.BranchId;
+
+                _employees = response.Data?.Where(x => x.UserRole != "Customer" && x.BranchId == branchId).ToList();
+            }else
+            {
+                _employees = response.Data?.Where(x => x.UserRole != "Customer").ToList();
+
+            }
+        }
+        else
+        {
+            Snackbar.Add(response.Message, Severity.Error);
+        }
+    }
+
+    private async Task OpenEditCustomerDialog(UserViewModel user)
+    {
+        var parameters = new DialogParameters
+            {
+                ["UserId"] = user.UserId,
+                ["CustomerData"] = new CustomerUpdateDTO
+                {
+                    FullName = user.FullName,
+                    PhoneNumber = user.UserPhone,
+                    BirthDate = user.BirthDate,
+                    Gender = user.Gender,
+                    Email = user.UserEmail,
+                    Avatar = user.Avatar
+                }
+            };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<EditCustomerDialog>("THÔNG TIN KHÁCH HÀNG", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            _loading = true;
+            StateHasChanged();
+            await LoadCustomersAsync();
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenEditEmployeeDialog(UserViewModel user)
+    {
+        var parameters = new DialogParameters
+            {
+                ["UserId"] = user.UserId,
+                ["EmployeeData"] = new EmployeeUpdateDTO
+                {
+                    FullName = user.FullName,
+                    PhoneNumber = user.UserPhone,
+                    BirthDate = user.BirthDate,
+                    Gender = user.Gender,
+                    Email = user.UserEmail,
+                    Avatar = user.Avatar,
+                    BranchId = user.BranchId,
+                    EmployeeAddress = user.WorkedBranch
+                }
+            };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<EditEmployeeDialog>("THÔNG TIN NHÂN VIÊN", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            _loading = true;
+            StateHasChanged();
+            await LoadEmployeesAsync();
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenCreateCustomerDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<CreateCustomerDialog>("TẠO KHÁCH HÀNG", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            _loading = true;
+            StateHasChanged();
+            await LoadCustomersAsync();
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenCreateEmployeeDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<CreateUserDialog>("TẠO NHÂN VIÊN", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            _loading = true;
+            StateHasChanged();
+            await LoadEmployeesAsync();
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+}
+
+

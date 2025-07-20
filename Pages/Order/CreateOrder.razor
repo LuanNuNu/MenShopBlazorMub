@@ -133,6 +133,9 @@
     </MudGrid>
 </MudContainer>
 @code {
+    [Parameter]
+    public int? BranchId { get; set; }
+    private string? role;
     private ProductModel? selectedProduct;
     private List<InvoiceItem> invoiceItems = new();
     private decimal total = 0;
@@ -427,4 +430,31 @@
         public decimal Price { get; set; }
         public string Img { get; set; }
     }
+
+    // private async Task EnsureBranchIdAsync()
+    // {
+    //     if (BranchId != null && BranchId > 0)
+    //         return;
+
+    //     if (role == "Customer")
+    //     {
+    //         var branches = await BranchService.GetAllBranchesAsync();
+    //         var onlineBranch = branches?.Data?.FirstOrDefault(b => b.IsOnline);
+    //         if (onlineBranch != null)
+    //         {
+    //             BranchId = onlineBranch.BranchId;
+    //             return;
+    //         }
+    //     }
+    //     else if (!string.IsNullOrEmpty(role))
+    //     {
+    //         var userResponse = await AdminService.GetCurrentUserAsync();
+    //         var user = userResponse?.Data;
+    //         if (user?.BranchId != null)
+    //         {
+    //             BranchId = user.BranchId;
+    //         }
+    //     }
+    // }
+
 }

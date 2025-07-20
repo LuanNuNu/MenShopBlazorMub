@@ -11,6 +11,7 @@ namespace MenShopBlazor.Services.Product
     {
         Task<IEnumerable<ProductViewModel>> GetAllProductsAsync();
         Task<ProductViewModel?> GetProductByIdAsync(int id);
+
         Task<IEnumerable<ProductDetailViewModel>> GetProductDetailsAsync(int productId);
         Task<IEnumerable<ImageProductViewModel>> GetImageProductDetailsAsync(int productDetailId);
         Task<IEnumerable<ProductViewModel>> GetProductsByCategoryIdAsync(int categoryId);
@@ -24,10 +25,10 @@ namespace MenShopBlazor.Services.Product
         Task<ProductDetailResponse> UpdateProductDetailAsync(UpdateProductDetailDTO dto);
         Task<ImageResponse> UpdateProductDetailImagesAsync(int detailId, List<UpdateImageDTO> images);
 
-        Task<ApiMessageReponse> ToggleProductStatusAsync(int productId);
-        Task<ApiMessageReponse> DeleteProductAsync(int productId);
-        Task<ApiMessageReponse> DeleteProductDetailAsync(int detailId);
-        Task<ApiMessageReponse> DeleteImageProductDetailAsync(int imageId);
+        Task<ApiResponseModel<object>> ToggleProductStatusAsync(int productId);
+        Task<ApiResponseModel<object>> DeleteProductAsync(int productId);
+        Task<ApiResponseModel<object>> DeleteProductDetailAsync(int detailId);
+        Task<ApiResponseModel<object>> DeleteImageProductDetailAsync(int imageId);
 
     }
 }

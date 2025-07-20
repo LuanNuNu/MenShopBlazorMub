@@ -1,0 +1,273 @@
+﻿@page "/product-detail/{ProductId:int}"
+@page "/product-detail/{ProductId:int}/{ProductName}"
+@page "/product-detail/{ProductId:int}/category={CategoryId:int}/{ProductName}"
+
+
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.Shared
+@using MenShopBlazor.DTOs.Product
+@using MenShopBlazor.Services.Branch
+@using MenShopBlazor.Services.Product
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.Admin
+@inject IBranchService BranchService
+@inject ITokenService TokenService
+@inject IProductService ProductService
+@inject IAdminService AdminService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+@implements IDisposable
+
+
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+
+@if (!_loading)
+{
+    @if (productDetails?.Any() == true)
+    {
+        @if (role == "Admin" || role == "BranchManager")
+        {
+            <AdminProductDetailView ProductDetails="productDetails"
+                                    BreadcrumbItems="_items" />
+        }
+        else
+        {
+            <CustomerProductDetailView ProductDetails="productDetails"
+                                       BreadcrumbItems="_items"
+                                       ProductDescriptionHtml="ProductDescriptionHtml"
+                                       AddToCart="AddToCart"
+                                       NavigateToDetail="NavigateToDetail"
+                                       ColorName="ColorName"
+                                       RelatedProductColors="_relatedProducts" />
+
+        }
+    }
+}
+
+
+@code {
+    [Parameter] public int ProductId { get; set; }
+    [Parameter] public string ProductName { get; set; } = "";
+    [Parameter] public int CategoryId { get; set; }
+    [Parameter] public int? BranchId { get; set; }
+    [Parameter] public string? ColorName { get; set; }
+
+    private List<BreadcrumbItem> _items = new();
+    private string? role;
+    private bool _isLoggedIn = false;
+    private bool _loading = false;
+    private int _quantity = 1;
+
+    private BranchViewModel? branchInfo;
+    private List<BranchProductDetailModel> productDetails = [];
+    private BranchProductDetailModel? selectedDetail;
+    private List<ProductColorViewModel> _relatedProducts = [];
+    private string ProductDescription = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        NavManager.LocationChanged += HandleLocationChanged;
+        ParseUrlQuery();
+
+        await EnsureBranchIdAsync();
+        role = await TokenService.GetRoleAsync();
+        _isLoggedIn = !string.IsNullOrWhiteSpace(role);
+
+
+        await LoadProductDetailAsync();
+        await LoadProductDescriptionAsync();
+        if (CategoryId != 0)
+            await LoadRelatedProductsAsync();
+
+        if (_isLoggedIn && role is "Admin" or "BranchManager")
+        {
+            branchInfo = (await BranchService.GetBranchByIdAsync(BranchId ?? 0))?.Data;
+        }
+
+        InitBreadcrumb();
+    }
+
+
+    public void Dispose()
+    {
+        NavManager.LocationChanged -= HandleLocationChanged;
+    }
+
+    private void ParseUrlQuery()
+    {
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("branchId", out var branchIdStr) && int.TryParse(branchIdStr, out var bid))
+            BranchId = bid;
+
+        if (query.TryGetValue("color", out var color))
+            ColorName = color;
+    }
+
+    private async void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        var uri = NavManager.ToAbsoluteUri(e.Location);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("color", out var color))
+            ColorName = color;
+        else
+            ColorName = null;
+
+        await LoadProductDetailAsync();
+        StateHasChanged();
+    }
+
+    private async Task EnsureBranchIdAsync()
+    {
+        if (BranchId is > 0) return;
+
+        role = await TokenService.GetRoleAsync();
+        _isLoggedIn = !string.IsNullOrWhiteSpace(role);
+
+        if (role == "Customer" || !_isLoggedIn)
+        {
+            var branches = await BranchService.GetAllBranchesAsync();
+            BranchId = branches?.Data?.FirstOrDefault(b => b.IsOnline)?.BranchId;
+        }
+        else
+        {
+            var userResponse = await AdminService.GetCurrentUserAsync();
+            if (userResponse?.IsSuccess == true)
+            {
+                BranchId = userResponse.Data?.BranchId;
+            }
+            else
+            {
+                BranchId = null;
+            }
+        }
+    }
+
+
+    private async Task LoadProductDetailAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        ParseUrlQuery();
+        await Task.Delay(400);
+
+        var res = await BranchService.GetBranchProductDetail(BranchId, ProductId);
+        productDetails = res.Data ?? [];
+
+        selectedDetail = !string.IsNullOrWhiteSpace(ColorName)
+            ? productDetails.FirstOrDefault(x =>
+                string.Equals(x.ColorName, ColorName, StringComparison.OrdinalIgnoreCase))
+                ?? productDetails.FirstOrDefault()
+            : productDetails.FirstOrDefault();
+
+        _quantity = 1;
+        _loading = false;
+    }
+
+    private async Task LoadProductDescriptionAsync()
+    {
+        var product = await ProductService.GetProductByIdAsync(ProductId);
+        ProductDescription = product?.Description ?? "";
+    }
+
+    private async Task LoadRelatedProductsAsync()
+    {
+        if (BranchId == null) return;
+
+        var res = await BranchService.GetBranchProduct(BranchId.Value, CategoryId);
+        var branchProducts = res.Data ?? [];
+
+        var detailTasks = branchProducts.Select(async product =>
+        {
+            var detailRes = await BranchService.GetBranchProductDetail(BranchId.Value, product.ProductId);
+            if (detailRes == null || !detailRes.IsSuccess) return [];
+
+            var details = detailRes.Data ?? [];
+            return details
+                .GroupBy(d => d.ColorName)
+                .Select(g => new ProductColorViewModel
+                {
+                    ProductId = product.ProductId,
+                    ProductName = product.ProductName,
+                    CategoryProductID = product.CategoryProductID,
+                    ColorName = g.Key,
+                    Price = g.FirstOrDefault()?.SellPrice ?? product.Price,
+                    Thumbnail = g.FirstOrDefault()?.Images?.FirstOrDefault() ?? product.Thumbnail
+                }).ToList();
+        });
+
+        var colorGroups = await Task.WhenAll(detailTasks);
+        _relatedProducts = colorGroups.SelectMany(x => x).ToList();
+    }
+
+    private void InitBreadcrumb()
+    {
+        _items = new List<BreadcrumbItem>
+    {
+        new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home)
+    };
+
+        if (role == "Admin")
+        {
+            _items.Add(new BreadcrumbItem("Danh sách chi nhánh", href: "/list-branches", icon: Icons.Material.Filled.List));
+            _items.Add(new BreadcrumbItem($"Sản phẩm - {branchInfo?.Name ?? "Không rõ"}", href: "/branch-products", icon: Icons.Material.Filled.Storefront));
+        }
+        else if (role == "BranchManager")
+        {
+            _items.Add(new BreadcrumbItem($"Sản phẩm - {branchInfo?.Name ?? "Không rõ"}", href: "/branch-products", icon: Icons.Material.Filled.Storefront));
+        }
+        else
+        {
+            _items.Add(new BreadcrumbItem("Sản phẩm", href: "/branch-products", icon: Icons.Material.Filled.Storefront));
+        }
+
+        var productName = productDetails.FirstOrDefault()?.ProductName ?? "...";
+        _items.Add(new BreadcrumbItem(productName, href: null, disabled: true, icon: Icons.Material.Filled.Info));
+    }
+
+
+    private void IncreaseQuantity() =>
+        _quantity = Math.Min(_quantity + 1, selectedDetail?.Quantity ?? _quantity);
+
+    private void DecreaseQuantity() =>
+        _quantity = Math.Max(1, _quantity - 1);
+
+    private void AddToCart() =>
+        Snackbar.Add($"Đã thêm {_quantity} vào giỏ hàng.", Severity.Success);
+
+    private void NavigateToDetail(object item)
+    {
+        string url = item switch
+        {
+            BranchProductModel model => UrlHelper.GenerateProductDetailUrl(
+                model.ProductId, model.ProductName ?? "", model.CategoryProductID, BranchId, null),
+
+            ProductColorViewModel color => UrlHelper.GenerateProductDetailUrl(
+                color.ProductId, color.ProductName ?? "", color.CategoryProductID, BranchId, color.ColorName),
+
+            _ => string.Empty
+        };
+
+        if (string.IsNullOrEmpty(url))
+        {
+            Snackbar.Add("Không xác định được loại dữ liệu sản phẩm.", Severity.Warning);
+            return;
+        }
+
+        NavManager.NavigateTo(url);
+    }
+
+    private MarkupString ProductDescriptionHtml =>
+        new(string.IsNullOrWhiteSpace(ProductDescription)
+            ? ""
+            : ProductDescription.Replace("\r\n", "<br/>").Replace("\n", "<br/>"));
+}
+

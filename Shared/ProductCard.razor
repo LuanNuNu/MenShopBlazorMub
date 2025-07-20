@@ -1,0 +1,48 @@
+﻿@using MenShopBlazor.DTOs.Product.ViewModel
+
+<MudGrid Class="@ContainerClass">
+    @if (Products != null && Products.Any())
+    {
+        @foreach (var item in Products)
+        {
+            <MudItem xs="12" sm="6" md="4" lg="3">
+                <MudCard Class="custom-card" @onclick="() => OnCardClick.InvokeAsync(item)">
+                    <MudCardMedia Image="@item.Thumbnail" Height="300" />
+                    <MudCardContent>
+                        <MudText Typo="Typo.body1">
+                            @item.ProductName
+                            @if (!string.IsNullOrWhiteSpace(item.ColorName))
+                            {
+                                <span> - @item.ColorName</span>
+                            }
+                        </MudText>
+
+                        <MudText Typo="Typo.body2">
+                            Giá:
+                            <strong>
+                                @(item.Price.HasValue? item.Price.Value.ToString("N0") + " đ" : "Liên hệ")
+                            </strong>
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudIconButton Icon="@Icons.Material.Filled.FavoriteBorder" />
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    }
+</MudGrid>
+
+@if (ShowScrollToTop)
+{
+    <MudScrollToTop>
+        <MudFab Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.ArrowUpward" />
+    </MudScrollToTop>
+}
+@code {
+    [Parameter] public IEnumerable<ProductColorViewModel>? Products { get; set; }
+    [Parameter] public string? Header { get; set; }
+    [Parameter] public string? ContainerClass { get; set; }
+    [Parameter] public bool ShowScrollToTop { get; set; } = false;
+    [Parameter] public EventCallback<ProductColorViewModel> OnCardClick { get; set; }
+}

@@ -1,0 +1,83 @@
+﻿@using MenShopBlazor.Services.Branch;
+@using MenShopBlazor.DTOs.Branch;
+@using MenShopBlazor.Services.Admin;
+@using MenShopBlazor.DTOs.Product;
+@inject IBranchService BranchService
+@inject IAdminService AdminService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Small" MaxHeight="unset" Style="overflow-y:hidden;">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Thêm chi nhánh mới</MudText>
+
+        <MudTextField @bind-Value="branch.Name"
+                      Label="Tên Chi nhánh"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => branch.Name)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+        <MudTextField @bind-Value="branch.Address"
+                      Label="Địa chỉ"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => branch.Address)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+        <MudRadioGroup T="bool" @bind-Value="branch.IsOnline">
+            <MudRadio Value="true" Label="Chi nhánh Online" />
+            <MudRadio Value="false" Label="Chi nhánh Offline" />
+        </MudRadioGroup>
+
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CreateBranchAsync">Thêm</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    private CreateUpdateBranchDTO branch = new();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+
+    }
+
+    private async Task CreateBranchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(branch.Name))
+        {
+            Snackbar.Add("Tên chi nhánh không được để trống", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(branch.Address))
+        {
+            Snackbar.Add("Địa chỉ không được để trống", Severity.Warning);
+            return;
+        }
+        Console.WriteLine("Tên chi nhánh: " + branch.Name);
+        var response = await BranchService.CreateBranchAsync(branch);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add($"{response.Message}", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add($"{response.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

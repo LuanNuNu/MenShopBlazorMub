@@ -1,0 +1,56 @@
+﻿@using MenShopBlazor.Services.Size
+@using MenShopBlazor.DTOs.Size
+@using MenShopBlazor.Shared
+@inject ISizeService SizeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Small" MaxHeight="unset" Style="overflow-y:hidden;">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Thêm kích cở mới</MudText>
+
+        <MudTextField @bind-Value="Size.Name"
+                      Label="Tên kích cở"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => Size.Name)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CreateProductAsync">Thêm</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    private SizeDTO Size = new();
+    private async Task CreateProductAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Size.Name))
+        {
+            Snackbar.Add("Tên kích cở không được để trống", Severity.Warning);
+            return;
+        }
+
+        var response = await SizeService.AddSize(Size);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add($"{response.Message}", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add($"{response.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

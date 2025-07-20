@@ -1,0 +1,185 @@
+﻿@page "/list-branches"
+
+@using MenShopBlazor.Services.Branch
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.Shared
+@inject IBranchService BranchService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+
+
+    <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    </MudOverlay>
+    @if (!_loading)
+{
+    <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH CHI NHÁNH</MudText>
+
+            <MudDataGrid T="BranchViewModel"
+                         Items="@branches"
+                         RowsPerPage="10"
+                         Dense="true"
+                         Filterable="true"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                <Columns>
+                    <PropertyColumn Property="x => x.BranchId" Title="MÃ CHI NHÁNH" Editable="false" />
+                    <PropertyColumn Property="x => x.Name" Title="TÊN CHI NHÁNH" />
+                    <PropertyColumn Property="x => x.Address" Title="ĐỊA CHỈ" />
+                    <PropertyColumn Property="x => x.ManagerName" Title="NGƯỜI QUẢN LÍ" />
+                    <PropertyColumn Property="x => x.IsOnline" Title="LOẠI">
+                        <CellTemplate>
+                            <MudButton Style="cursor: pointer"
+                                           Color="@(context.Item.IsOnline ? Color.Primary : Color.Secondary)"
+                                           Variant="Variant.Text">
+                                @(context.Item.IsOnline ? "Online" : "Offline")
+                            </MudButton>
+                        </CellTemplate>
+
+                    </PropertyColumn>
+                    <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                        <CellTemplate>
+                            <MudStack Row>
+                                <MudButton StartIcon="@Icons.Material.Filled.Visibility"
+                                           Size="Size.Small"
+                                           Color="Color.Info"
+                                           OnClick="@(() => NavigateToBranchProducts(context.Item.BranchId))">
+                                    Xem sản phẩm
+                                </MudButton>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Edit"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           OnClick="@(() => OpenEditDialog(context.Item))">
+                                    Sửa
+                                </MudButton>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Delete"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           Class="ml-2"
+                                           OnClick="@(() => DeleteBranchAsync(context.Item.BranchId))">
+                                    Xoá
+                                </MudButton>
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+
+                <PagerContent>
+                    <MudDataGridPager T="BranchViewModel" />
+                </PagerContent>
+            </MudDataGrid>
+
+            <MudButton Color="Color.Primary" Variant="Variant.Outlined"
+                       OnClick="OpenCreateDialog"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Class="mt-2 mb-3">
+                Thêm chi nhánh
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+}
+@code {
+    private IEnumerable<BranchViewModel> branches = new List<BranchViewModel>();
+    private bool _loading = false;
+    private List<BreadcrumbItem> _items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = new()
+    {
+        new BreadcrumbItem("Trang chủ", href: "/home", icon: Icons.Material.Filled.Home),
+        new BreadcrumbItem("Danh sách chi nhánh", href: "/list-branches", icon: Icons.Material.Filled.List)
+    };
+
+        await LoadBranchesAsync();
+    }
+
+
+    private async Task LoadBranchesAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = BranchService.GetAllBranchesAsync();
+        var delayTask = Task.Delay(1000);
+
+        await Task.WhenAll(loadTask, delayTask);
+
+        if (loadTask.Result.IsSuccess)
+        {
+            branches = loadTask.Result.Data ?? new List<BranchViewModel>();
+        }
+        else
+        {
+            Snackbar.Add(loadTask.Result.Message, Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task DeleteBranchAsync(int branchId)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá chi nhánh có ID = {branchId} không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await BranchService.DeleteBranchlAsync(branchId);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add(response.Message, Severity.Success);
+                await LoadBranchesAsync();
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<CreateBranchDialog>("THÊM CHI NHÁNH", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadBranchesAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(BranchViewModel branch)
+    {
+        var parameters = new DialogParameters { ["branch"] = branch };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = DialogService.Show<EditBranchDialog>("CHỈNH SỬA CHI NHÁNH", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadBranchesAsync();
+        }
+    }
+    private void NavigateToBranchProducts(int branchId)
+    {
+        NavManager.NavigateTo($"/branch-products/{branchId}");
+    }
+}

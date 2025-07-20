@@ -1,0 +1,149 @@
+﻿@page "/list-size"
+
+@using MenShopBlazor.Services.Size
+@using MenShopBlazor.DTOs.Size
+@using MenShopBlazor.Shared
+@inject ISizeService SizeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+@if (!_loading)
+{
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH KÍCH CỠ</MudText>
+            <MudDataGrid T="SizeDTO"
+                         Items="@sizes"
+                         Dense="true"
+                         Filterable="true"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow">
+                <Columns>
+                    <PropertyColumn Property="x => x.SizeId" Title="MÃ KÍCH CỠ" Editable="false" />
+                    <PropertyColumn Property="x => x.Name" Title="TÊN KÍCH CỠ" />
+
+                    <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                        <CellTemplate>
+                            <MudStack Row>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Edit"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           OnClick="@(() => OpenEditDialog(context.Item))">
+                                    Sửa
+                                </MudButton>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Delete"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           Class="ml-2"
+                                           OnClick="@(() => DeleteColorAsync(context.Item.SizeId))">
+                                    Xoá
+                                </MudButton>
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+                <PagerContent>
+                    <MudDataGridPager T="SizeDTO" />
+                </PagerContent>
+            </MudDataGrid>
+
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Outlined"
+                       OnClick="OpenCreateDialog"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Class="mt-2 mb-3">
+                Thêm kích cỡ
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+}
+
+
+@code {
+    private IEnumerable<SizeDTO> sizes = new List<SizeDTO>();
+    private bool _loading = false;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSizesAsync();
+    }
+    private async Task LoadSizesAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = SizeService.GetSizeAsync();
+
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
+
+        sizes = loadTask.Result;
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+
+
+    private async Task DeleteColorAsync(int sizeId)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá size có ID = {sizeId} không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await SizeService.DeleteSize(sizeId);
+
+            if (response.IsSuccess)
+            {
+                Snackbar.Add(response.Message, Severity.Success);
+                await LoadSizesAsync();
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<CreateSizeDialog>("THÊM KÍCH CỞ", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadSizesAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(SizeDTO size)
+    {
+        var parameters = new DialogParameters { ["Size"] = size };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = DialogService.Show<EditSizeDialog>("CHỈNH SỬA KÍCH CỞ", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadSizesAsync();
+        }
+    }
+}
+

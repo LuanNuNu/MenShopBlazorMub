@@ -2,9 +2,18 @@
 @using MenShopBlazor.DTOs.Product
 @using MenShopBlazor.DTOs.Product.ReponseDTO
 @using MenShopBlazor.DTOs
+@using MenShopBlazor.Services.Color;
+@using MenShopBlazor.Services.Fabric;
+@using MenShopBlazor.Services.Size;
+@using MenShopBlazor.DTOs.Color
+@using MenShopBlazor.DTOs.Size
+@using MenShopBlazor.DTOs.Fabric
 @using MenShopBlazor.DTOs.Product.ViewModel
 @inject IProductService ProductService
 @inject ISnackbar Snackbar
+@inject IColorService ColorService
+@inject IFabricService FabricService
+@inject ISizeService SizeService
 
 <MudDialog>
     <DialogContent>
@@ -13,26 +22,30 @@
         <MudGrid Class="mb-2">
             <MudItem xs="12" sm="7">
                 <MudPaper Class="pa-4">
-                    <MudSelect T="int" Label="Size" @bind-Value="selectedSizeId" Required="true">
-                        @foreach (var size in sizes)
-                        {
-                            <MudSelectItem Value="@size.SizeId">@size.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudAutocomplete T="SizeDTO"
+                                     Label="Size"
+                                     @bind-Value="selectedSize"
+                                     ToStringFunc="@(s => s?.Name)"
+                                     SearchFunc="SearchSizeAutocomplete"
+                                     Required="true" />
 
-                    <MudSelect T="int" Label="Màu sắc" @bind-Value="selectedColorId" Required="true" Class="mt-3">
-                        @foreach (var color in colors)
-                        {
-                            <MudSelectItem Value="@color.ColorId">@color.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudAutocomplete T="ColorDTO"
+                                     Label="Màu sắc"
+                                     @bind-Value="selectedColor"
+                                     ToStringFunc="@(c => c?.Name)"
+                                     SearchFunc="SearchColorsAutocomplete"
+                                     Required="true"
+                                     Class="mt-3" />
 
-                    <MudSelect T="int" Label="Chất liệu" @bind-Value="selectedFabricId" Required="true" Class="mt-3">
-                        @foreach (var fabric in fabrics)
-                        {
-                            <MudSelectItem Value="@fabric.FabricId">@fabric.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudAutocomplete T="FabricDTO"
+                                     Label="Chất liệu"
+                                     @bind-Value="selectedFabric"
+                                     ToStringFunc="@(f => f?.Name)"
+                                     SearchFunc="SearchFabricsAutocomplete"
+                                     Required="true"
+                                     Class="mt-3" />
+
+
 
                     <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="AddDetailToList" Class="mt-4">
                         Thêm vào danh sách
@@ -88,10 +101,15 @@
     private int selectedSizeId;
     private int selectedColorId;
     private int selectedFabricId;
+    private SizeDTO selectedSize;
+    private ColorDTO selectedColor;
+    private FabricDTO selectedFabric;
 
-    private IEnumerable<SizeModel> sizes = new List<SizeModel>();
-    private IEnumerable<ColorModel> colors = new List<ColorModel>();
-    private IEnumerable<FabricModel> fabrics = new List<FabricModel>();
+
+
+    private IEnumerable<SizeDTO> sizes = new List<SizeDTO>();
+    private IEnumerable<ColorDTO> colors = new List<ColorDTO>();
+    private IEnumerable<FabricDTO> fabrics = new List<FabricDTO>();
 
     private List<ProductDetailItemDTO> tempDetails = new();
     private AddProductDetailDTO newDetail = new();
@@ -100,53 +118,9 @@
     {
         newDetail.ProductId = ProductId;
 
-        sizes = new List<SizeModel>
-    {
-        new() { SizeId = 1, Name = "S" },
-        new() { SizeId = 2, Name = "M" },
-        new() { SizeId = 3, Name = "L" },
-        new() { SizeId = 4, Name = "XL" }
-    };
-
-        colors = new List<ColorModel>
-    {
-        new() { ColorId = 1, Name = "Đỏ" },
-        new() { ColorId = 2, Name = "Xanh" },
-        new() { ColorId = 3, Name = "Đen" },
-        new() { ColorId = 4, Name = "Tím" }
-
-    };
-
-        fabrics = new List<FabricModel>
-    {
-        new() { FabricId = 1, Name = "Cotton" },
-        new() { FabricId = 2, Name = "Linen" },
-        new() { FabricId = 3, Name = "Polyester" }
-    };
-    }
-
-    private void AddDetailToList()
-    {
-        if (selectedSizeId == 0 || selectedColorId == 0 || selectedFabricId == 0)
-        {
-            Snackbar.Add("Vui lòng chọn đầy đủ Size, Màu và Chất liệu", Severity.Warning);
-            return;
-        }
-
-        if (tempDetails.Any(d => d.SizeId == selectedSizeId && d.ColorId == selectedColorId && d.FabricId == selectedFabricId))
-        {
-            Snackbar.Add("Chi tiết này đã được thêm trước đó", Severity.Warning);
-            return;
-        }
-
-        tempDetails.Add(new ProductDetailItemDTO
-            {
-                SizeId = selectedSizeId,
-                ColorId = selectedColorId,
-                FabricId = selectedFabricId
-            });
-        Console.WriteLine("size" + selectedSizeId + "màu" + selectedColorId + "chất liệu" + selectedFabricId);
-        selectedSizeId = selectedColorId = selectedFabricId = 0;
+        sizes = await SizeService.GetSizeAsync();
+        colors = await ColorService.GetColorDtos();
+        fabrics = await FabricService.GetFabricDtos();
     }
 
     private async Task SaveAllDetails()
@@ -184,10 +158,70 @@
     {
         MudDialog.Cancel();
     }
+    private Task<IEnumerable<SizeDTO>> SearchSizeAutocomplete(string value, CancellationToken token)
+    {
+        IEnumerable<SizeDTO> result;
+        if (string.IsNullOrWhiteSpace(value))
+            result = sizes;
+        else
+            result = sizes.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(result);
+    }
+
+    private Task<IEnumerable<ColorDTO>> SearchColorsAutocomplete(string value, CancellationToken token)
+    {
+        IEnumerable<ColorDTO> result;
+        if (string.IsNullOrWhiteSpace(value))
+            result = colors;
+        else
+            result = colors.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(result);
+    }
+
+    private Task<IEnumerable<FabricDTO>> SearchFabricsAutocomplete(string value, CancellationToken token)
+    {
+        IEnumerable<FabricDTO> result;
+        if (string.IsNullOrWhiteSpace(value))
+            result = fabrics;
+        else
+            result = fabrics.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(result);
+    }
 
 
+
+
+    private void AddDetailToList()
+    {
+        if (selectedSize == null || selectedColor == null || selectedFabric == null)
+        {
+            Snackbar.Add("Vui lòng chọn đầy đủ Size, Màu và Chất liệu", Severity.Warning);
+            return;
+        }
+
+        if (tempDetails.Any(d => d.SizeId == selectedSize.SizeId && d.ColorId == selectedColor.ColorId && d.FabricId == selectedFabric.FabricId))
+        {
+            Snackbar.Add("Chi tiết này đã được thêm trước đó", Severity.Warning);
+            return;
+        }
+
+        tempDetails.Add(new ProductDetailItemDTO
+            {
+                SizeId = selectedSize.SizeId,
+                ColorId = selectedColor.ColorId,
+                FabricId = selectedFabric.FabricId
+            });
+
+        selectedSize = null;
+        selectedColor = null;
+        selectedFabric = null;
+    }
     private string GetSizeName(int id) => sizes.FirstOrDefault(s => s.SizeId == id)?.Name ?? "N/A";
     private string GetColorName(int id) => colors.FirstOrDefault(c => c.ColorId == id)?.Name ?? "N/A";
     private string GetFabricName(int id) => fabrics.FirstOrDefault(f => f.FabricId == id)?.Name ?? "N/A";
+
 
 }

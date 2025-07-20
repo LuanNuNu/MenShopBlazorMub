@@ -7,10 +7,10 @@ namespace MenShopBlazor.Services.Category
 {
     public interface ICategoryService
     {
-        Task<IEnumerable<CategoryModelView>> GetAllCategoriesAsync();
-        Task<CategoryModelView?> GetCategoryByIdAsync(int id);
-        Task<CategoryModelView?> CreateCategoryAsync(CreateCategoryDTO category);
-        Task<CategoryModelView?> UpdateCategoryAsync(CategoryModelView category);
-        Task<ApiMessageReponse> DeleteCategoryAsync(int id);
+        Task<IEnumerable<CategoryProductViewModel>> GetAllCategoriesAsync();
+        Task<CategoryProductViewModel?> GetCategoryByIdAsync(int id);
+        Task<ApiResponseModel<object>> CreateCategoryAsync(CreateUpdateCategoryDTO category);
+        Task<ApiResponseModel<object>> UpdateCategoryAsync(int categoryId,CreateUpdateCategoryDTO category);
+        Task<ApiResponseModel<object>> DeleteCategoryAsync(int categoryId);
     }
 }

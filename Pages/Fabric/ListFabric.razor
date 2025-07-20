@@ -1,0 +1,147 @@
+﻿@page "/list-fabric"
+
+@using MenShopBlazor.Services.Fabric
+@using MenShopBlazor.DTOs.Fabric
+@using MenShopBlazor.Shared
+@inject IFabricService FabricService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+    <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    </MudOverlay>
+@if (!_loading)
+{
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH CHẤT LIỆU</MudText>
+
+            <MudDataGrid T="FabricDTO"
+                         Items="@fabrics"
+                         RowsPerPage="10"
+                         Dense="true"
+                         Filterable="true"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                <Columns>
+                    <PropertyColumn Property="x => x.FabricId" Title="MÃ CHẤT LIỆU" Editable="false" />
+                    <PropertyColumn Property="x => x.Name" Title="TÊN CHẤT LIỆU" />
+
+                    <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                        <CellTemplate>
+                            <MudStack Row>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Edit"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           OnClick="@(() => OpenEditDialog(context.Item))">
+                                    Sửa
+                                </MudButton>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Delete"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           Class="ml-2"
+                                           OnClick="@(() => DeleteColorAsync(context.Item.FabricId))">
+                                    Xoá
+                                </MudButton>
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+
+                <PagerContent>
+                    <MudDataGridPager T="FabricDTO" />
+                </PagerContent>
+            </MudDataGrid>
+
+            <MudButton Color="Color.Primary" Variant="Variant.Outlined"
+                       OnClick="OpenCreateDialog"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Class="mt-2 mb-3">
+                Thêm màu
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+}
+@code {
+    private IEnumerable<FabricDTO> fabrics = new List<FabricDTO>();
+
+    private bool _loading = false;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFabricsAsync();
+    }
+    private async Task LoadFabricsAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = FabricService.GetFabricDtos();
+
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
+
+        fabrics = loadTask.Result;
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+
+    private async Task DeleteColorAsync(int colorId)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá chất liệu có ID = {colorId} không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await FabricService.DeleteFabric(colorId);
+
+            if (response.IsSuccess)
+            {
+                Snackbar.Add(response.Message, Severity.Success);
+                await LoadFabricsAsync();
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<CreateFabricDialog>("THÊM CHẤT LIỆU", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadFabricsAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(FabricDTO fabric)
+    {
+        var parameters = new DialogParameters { ["Fabric"] = fabric };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = DialogService.Show<EditFabricDialog>("CHỈNH SỬA CHẤT LIỆU", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadFabricsAsync();
+        }
+    }
+}

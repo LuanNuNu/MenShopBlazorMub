@@ -1,4 +1,4 @@
-﻿@page "/list-product"
+﻿@page "/list-product-admin"
 
 @using MenShopBlazor.Services.Product
 @using MenShopBlazor.DTOs.Product.ViewModel
@@ -6,9 +6,19 @@
 @inject IProductService ProductService
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
 
-<MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+@if (!_loading)
+{
 <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+<MudBreadcrumbs Items="_items"></MudBreadcrumbs>
     <MudGrid>
         <MudItem xs="12">
         <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH SẢN PHẨM</MudText>
@@ -25,8 +35,7 @@
         RowsPerPage="8"
         Dense="true"
         Filterable="true"
-        FilterMode="DataGridFilterMode.ColumnFilterRow"
-                     Style="height: calc(100vh - 260px); overflow-y: auto;">
+        FilterMode="DataGridFilterMode.ColumnFilterRow">
 
             <Columns>
                 <PropertyColumn Property="x => x.ProductId"
@@ -34,7 +43,14 @@
                                 Editable="false"/>
 
                 <PropertyColumn Property="x => x.ProductName" Title="TÊN SẢN PHẨM" />
-                <PropertyColumn Property="x => x.Description" Title="MÔ TẢ" Filterable="false"/>
+                    <TemplateColumn Title="MÔ TẢ" Filterable="false" class="w-25">
+                        <CellTemplate>
+                            <div class="text-ellipsis-2 ">
+                                @context.Item.Description
+                            </div>
+                        </CellTemplate>
+                    </TemplateColumn>
+
                 <PropertyColumn Property="x => x.Status" Title="TRẠNG THÁI">
                     <CellTemplate>
                         <MudIconButton Style="cursor: pointer"
@@ -93,7 +109,7 @@
         </MudItem>
     </MudGrid>
 </MudContainer>
-
+  }
 @code {
     private List<BreadcrumbItem> _items = new();
 
@@ -101,6 +117,7 @@
     private string? alertMessage;
     private Severity alertSeverity;
     private bool showAlert = false;
+    private bool _loading = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -112,14 +129,25 @@
         };
         await LoadProductsAsync();
     }
-
     private async Task LoadProductsAsync()
     {
-        products = await ProductService.GetAllProductsAsync();
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = ProductService.GetAllProductsAsync();
+
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
+
+        products = loadTask.Result;
+
+        _loading = false;
+        StateHasChanged();
     }
+
     private void GoToDetailPage(int productId)
     {
-        Navigation.NavigateTo($"/product-detail/{productId}");
+        Navigation.NavigateTo($"/product-detail-admin/{productId}");
     }
 
     private async Task ShowAlertAsync(string message, Severity severity, int duration = 5000)
@@ -152,10 +180,10 @@
             var response = await ProductService.DeleteProductAsync(id);
             await LoadProductsAsync();
 
-            if (response.Success)
-                await ShowAlertAsync(response.Message, Severity.Success);
+            if (response.IsSuccess)
+                Snackbar.Add(response.Message, Severity.Success);
             else
-                await ShowAlertAsync(response.Message, Severity.Error);
+                Snackbar.Add(response.Message, Severity.Error);
         }
     }
 
@@ -164,10 +192,11 @@
         var response = await ProductService.ToggleProductStatusAsync(product.ProductId);
         await LoadProductsAsync();
 
-        if (response.Success)
-            await ShowAlertAsync(response.Message, Severity.Success);
+        if (response.IsSuccess)
+            Snackbar.Add(response.Message, Severity.Success);
+
         else
-            await ShowAlertAsync(response.Message, Severity.Error);
+            Snackbar.Add(response.Message, Severity.Error);
     }
 
     private async Task OpenCreateDialog()
@@ -179,7 +208,6 @@
         if (!result.Canceled)
         {
             await LoadProductsAsync();
-            await ShowAlertAsync("Tạo sản phẩm thành công", Severity.Success);
         }
     }
 

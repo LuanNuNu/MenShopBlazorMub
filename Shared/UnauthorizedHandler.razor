@@ -1,0 +1,32 @@
+﻿@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+@using MenShopBlazor.Services.Account
+@inject IAccountService AccountService
+@using MenShopBlazor.Services.Auth
+@inject CustomAuthProvider AuthProvider
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity is { IsAuthenticated: false })
+        {
+            Snackbar.Add("Bạn chưa đăng nhập. Đang chuyển hướng về trang đăng nhập...", Severity.Error);
+            await Task.Delay(2000);
+            NavigationManager.NavigateTo("/login");
+        }
+        else
+        {
+            Snackbar.Add("Bạn không có quyền truy cập chức năng này.", Severity.Error);
+            await Task.Delay(1500);
+            await AccountService.LogoutAsync();
+            AuthProvider.MarkUserAsLoggedOut();
+            await Task.Delay(300);
+            NavigationManager.NavigateTo("/");
+        }
+    }
+}

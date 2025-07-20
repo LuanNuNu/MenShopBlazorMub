@@ -1,0 +1,221 @@
+﻿@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Services.UploadImage
+@inject IAdminService AdminService
+@inject IUpImg ImageService
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Medium">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Cập nhật thông tin nhân viên</MudText>
+
+        <div class="d-flex gap-2 align-items-start">
+            @if (!string.IsNullOrEmpty(_model.Avatar))
+            {
+                <MudPaper Class="pa-2 d-flex flex-column align-items-center">
+                    <MudText Typo="Typo.subtitle2">Ảnh hiện tại</MudText>
+                    <MudImage Src="@_model.Avatar"
+                              Alt="Ảnh đại diện"
+                              Elevation="25"
+                              Class="rounded-lg"
+                              Width="150" />
+                </MudPaper>
+            }
+
+            @if (previewImage is not null)
+            {
+                <MudPaper Class="pa-2 d-flex flex-column align-items-center">
+                    <MudText Typo="Typo.subtitle2">Ảnh mới</MudText>
+                    <MudImage Src="@previewImage.PreviewUrl"
+                              Alt="Ảnh mới"
+                              Elevation="25"
+                              Class="rounded-lg"
+                              Width="150" />
+                </MudPaper>
+            }
+        </div>
+
+        <MudFileUpload T="IBrowserFile"
+                       FilesChanged="OnFileSelected"
+                       MaxFiles="1"
+                       MaxFileSize="2097152"
+                       Accept="image/*">
+            <ActivatorContent>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.Image">
+                    Chọn ảnh mới
+                </MudButton>
+            </ActivatorContent>
+        </MudFileUpload>
+
+        <MudDivider Class="my-2" />
+
+        <MudForm @ref="form" Model="_model" Validated="OnValidated">
+            <MudTextField @bind-Value="_model.FullName"
+                          Label="Họ và tên"
+                          Margin="Margin.Dense"
+                          Variant="Variant.Outlined"
+                          Required="true" />
+
+            <MudTextField @bind-Value="_model.PhoneNumber"
+                          Label="Số điện thoại"
+                          Margin="Margin.Dense"
+                          Variant="Variant.Outlined"
+                          Required="true" />
+
+            <MudDatePicker @bind-Date="_model.BirthDate"
+                           Label="Ngày sinh"
+                           Required="true"
+                           Variant="Variant.Outlined"
+                           MaxDate="@DateTime.Today"
+                           DateFormat="dd/MM/yyyy" />
+            <MudTextField @bind-Value="_model.Email"
+                          Label="Email"
+                          Margin="Margin.Dense"
+                          Variant="Variant.Outlined"
+                          Required="true" />
+            <MudRadioGroup T="bool?" @bind-Value="_model.Gender">
+                <MudRadio T="bool?" Value="true" Label="Nam" />
+                <MudRadio T="bool?" Value="false" Label="Nữ" />
+            </MudRadioGroup>
+
+
+            <MudTextField @bind-Value="_model.EmployeeAddress"
+                          Label="Địa chỉ làm việc"
+                          Margin="Margin.Dense"
+                          Variant="Variant.Outlined" />
+
+            <MudNumericField T="int?" @bind-Value="_model.BranchId"
+                             Label="Mã chi nhánh"
+                             Margin="Margin.Dense"
+                             Variant="Variant.Outlined" />
+
+            <MudTextField @bind-Value="_model.NewPassword"
+                          Label="Mật khẩu mới"
+                          InputType="InputType.Password"
+                          Margin="Margin.Dense"
+                          Variant="Variant.Outlined" />
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="UpdateEmployeeAsync">Cập nhật</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public string UserId { get; set; }
+
+    [Parameter]
+    public EmployeeUpdateDTO EmployeeData { get; set; }
+
+    private MudForm form;
+    private EmployeeUpdateDTO _model = new();
+
+    private PreviewImage previewImage;
+
+    public class PreviewImage
+    {
+        public IBrowserFile File { get; set; }
+        public string PreviewUrl { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        _model = new EmployeeUpdateDTO
+            {
+                FullName = EmployeeData.FullName,
+                PhoneNumber = EmployeeData.PhoneNumber,
+                Email = EmployeeData.Email,
+                BirthDate = EmployeeData.BirthDate,
+                Gender = EmployeeData.Gender,
+                Avatar = EmployeeData.Avatar,
+                EmployeeAddress = EmployeeData.EmployeeAddress,
+                BranchId = EmployeeData.BranchId
+            };
+    }
+
+    private async Task OnFileSelected(IBrowserFile file)
+    {
+        previewImage = null;
+        var previewUrl = await GetPreviewUrl(file);
+        previewImage = new PreviewImage
+            {
+                File = file,
+                PreviewUrl = previewUrl
+            };
+        StateHasChanged();
+    }
+
+    private async Task<string> GetPreviewUrl(IBrowserFile file)
+    {
+        using var stream = file.OpenReadStream(2 * 1024 * 1024);
+        var buffer = new byte[file.Size];
+        await stream.ReadAsync(buffer);
+        return $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+    }
+
+    private async Task UpdateEmployeeAsync()
+    {
+        await form.Validate();
+        if (!form.IsValid)
+        {
+            Snackbar.Add("Vui lòng kiểm tra các trường bắt buộc.", Severity.Warning);
+            return;
+        }
+
+        // Nếu chọn ảnh mới thì upload
+        if (previewImage != null)
+        {
+            using var stream = previewImage.File.OpenReadStream(2 * 1024 * 1024);
+            var content = new MultipartFormDataContent();
+            content.Add(new StreamContent(stream), "file", previewImage.File.Name);
+
+            var uploadedUrl = await ImageService.UploadImage(content);
+            if (!string.IsNullOrEmpty(uploadedUrl))
+            {
+                _model.Avatar = uploadedUrl;
+            }
+            else
+            {
+                Snackbar.Add("Tải ảnh thất bại.", Severity.Error);
+                return;
+            }
+        }
+
+        var response = await AdminService.UpdateEmployeeAsync(UserId, _model);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add(response.Message, Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            if (response.Errors != null && response.Errors.Any())
+            {
+                foreach (var err in response.Errors)
+                    Snackbar.Add(err, Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+    }
+
+    private void OnValidated()
+    {
+        StateHasChanged();
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

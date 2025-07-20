@@ -1,0 +1,59 @@
+﻿@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Services.Account
+@using MenShopBlazor.Shared
+@inject IAdminService AdminService
+@inject IAccountService AccountService
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Medium">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Thêm khách hàng mới</MudText>
+
+        <MudForm @ref="form" @bind-IsValid="isValid">
+            <AccountRegisterForm Model="user" >
+            </AccountRegisterForm>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CreateCustomerAsync">Tạo</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    private MudForm form;
+    private bool isValid;
+    private AccountRegisterDTO user = new();
+
+
+    private async Task CreateCustomerAsync()
+    {
+        await form.Validate();
+        if (!form.IsValid)
+        {
+            Snackbar.Add("Vui lòng kiểm tra các trường bắt buộc.", Severity.Warning);
+            return;
+        }
+
+        var response = await AccountService.RegisterAsync(user);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add("Tạo khách hàng thành công!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add(response.Message, Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

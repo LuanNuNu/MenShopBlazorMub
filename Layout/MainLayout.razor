@@ -1,4 +1,10 @@
 ﻿@inherits LayoutComponentBase
+@using MenShopBlazor.Services.Token
+@inject NavigationManager NavManager
+@inject ITokenService TokenService
+@using MenShopBlazor.Shared
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -6,65 +12,183 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1" Color="Color.Primary">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-        <MudLink Href="/">
-            <MudText Typo="Typo.h5" Class="ml-3 d-flex align-items-center">
-                <MudImage Src="imgs/Logo.png" Alt="Logo" Style="width: 100px" />
-                Men Shop
-            </MudText>
+    @* @if (!IsAuthPage)
+    { *@
+        @if (IsCustomerView || IsGuestView)
+        {
+            <MudAppBar Elevation="0" Style="@($"background:{Colors.LightBlue.Lighten5};")">
+                <MudContainer MaxWidth="MaxWidth.Large" Class="d-flex align-items-center justify-content-around ">
+                    <MudLink Href="/">
+                        <MudText Typo="Typo.h5" Class="d-flex align-items-center">
+                            <MudImage Src="/imgs/logo-MS.png" Alt="Logo" Style="width: 140px" />
+                        </MudText>
+                    </MudLink>
 
-        </MudLink>
+                    <MudHidden Breakpoint="Breakpoint.MdAndDown">
+                        <MudStack Row="true" Spacing="2">
+                            <MudMenu Label="ÁO">
+                                <MudMenuItem OnClick="@(() => NavigateToCategory(1))">Áo Thun</MudMenuItem>
+                                <MudMenuItem OnClick="@(() => NavigateToCategory(2))">Áo Sơ Mi</MudMenuItem>
+                            </MudMenu>
 
-        <MudSpacer />
+                            <MudMenu Label="QUẦN">
+                                <MudMenuItem OnClick="@(() => NavigateToCategory(3))">Quần Jean</MudMenuItem>
+                                <MudMenuItem OnClick="@(() => NavigateToCategory(4))">Quần Tây</MudMenuItem>
+                            </MudMenu>
+
+                            <MudMenu Label="GIÀY">
+                                <MudMenuItem OnClick="@(() => NavigateToCategory(5))">Sneaker</MudMenuItem>
+                            </MudMenu>
+                        </MudStack>
+                    </MudHidden>
+
+                    <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                        <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="@DrawerToggle" Color="Color.Dark" />
+                    </MudHidden>
+
+                    @if (IsCustomerView && !_hideNavMenu)
+                    {
+                        <MudDrawer @bind-Open="_drawerOpen" Anchor="Anchor.Left" Overlay="true" Elevation="1" Variant="DrawerVariant.Temporary">
+                            <MudDrawerHeader>
+                                <MudText Typo="Typo.h6">Danh mục</MudText>
+                            </MudDrawerHeader>
+
+                            <MudNavMenu Rounded="true" Margin="Margin.Dense" Color="Color.Primary" Class="pa-2">
+                                <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                                    <MudTextField @bind-Value="Search"
+                                                  Label="Tìm kiếm gì đó..."
+                                                  Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense"
+                                                  Immediate="true"
+                                                  MaxLength="10"
+                                                  Adornment="Adornment.End"
+                                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                                  AdornmentColor="Color.Secondary"
+                                                  Class="mb-2" />
+                                </MudHidden>
+
+                                <MudNavGroup Title="ÁO" Icon="@Icons.Material.Filled.Checkroom">
+                                    <MudNavLink OnClick="@(() => NavigateToCategory(1))">Áo Thun</MudNavLink>
+                                    <MudNavLink OnClick="@(() => NavigateToCategory(2))">Áo Sơ Mi</MudNavLink>
+                                </MudNavGroup>
+
+                                <MudNavGroup Title="QUẦN" Icon="@Icons.Material.Filled.Checkroom">
+                                    <MudNavLink OnClick="@(() => NavigateToCategory(3))">Quần Jean</MudNavLink>
+                                    <MudNavLink OnClick="@(() => NavigateToCategory(4))">Quần Tây</MudNavLink>
+                                </MudNavGroup>
+
+                                <MudNavGroup Title="GIÀY" Icon="@Icons.Material.Filled.Checkroom">
+                                    <MudNavLink OnClick="@(() => NavigateToCategory(5))">Sneaker</MudNavLink>
+                                </MudNavGroup>
+                            </MudNavMenu>
+                        </MudDrawer>
+                    }
+
+                    <MudSpacer />
+                    <MudHidden Breakpoint="Breakpoint.MdAndDown">
+                        <MudTextField @bind-Value="Search"
+                                      Label="Tìm kiếm gì đó..."
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true"
+                                      MaxLength="10"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      AdornmentColor="Color.Secondary" />
+                    </MudHidden>
+
+                    <MudIconButton Icon="@Icons.Material.Outlined.Notifications" />
+                    <UserMenu />
+                </MudContainer>
+            </MudAppBar>
+        }
+        else if (IsManagementView)
+        {
+
+            <MudAppBar Elevation="25" Style="@($"background:{Colors.LightBlue.Lighten5};")">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Dark" Edge="Edge.Start" OnClick="@DrawerToggle" />
+                <MudLink Href="/">
+                    <MudText Typo="Typo.h5" Class="ml-3 d-flex align-items-center">
+                        <MudImage Src="imgs/Logo.png" Alt="Logo" Style="width: 100px" />
+                    </MudText>
+                </MudLink>
+
+                <MudSpacer />
+                <MudIconButton Icon="@Icons.Material.Outlined.Notifications" Color="Color.Dark" />
+                <MudIconButton Icon="@Icons.Material.Outlined.Search" Color="Color.Dark" />
+                <MudIconButton Icon="@Icons.Material.Outlined.Settings" Color="Color.Dark" />
+                <UserMenu />
+            </MudAppBar>
+
+            @if (!_hideNavMenu && _isLoggedIn)
+            {
+                <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+                    <NavMenu />
+                </MudDrawer>
+            }
+        }
 
 
-        <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
-        <MudIconButton Icon="@Icons.Material.Filled.Settings" Color="Color.Inherit" />
-
-        <MudMenu Dense
-                 Variant="Variant.Text"
-                 Size="Size.Medium"
-                 Color="Color.Inherit"
-                 Icon="@Icons.Material.TwoTone.MoreVert">
-
-            <MudMenu StartIcon="@Icons.Material.TwoTone.Settings"
-                     IconColor="Color.Primary"
-                     Label="Settings">
-                <MudMenuItem Icon="@Icons.Material.TwoTone.DarkMode"
-                             IconColor="Color.Secondary"
-                             Label="Dark Theme" />
-            </MudMenu>
-
-            <MudDivider />
-
-            <MudMenuItem Href="/"
-                         ForceLoad
-                         Icon="@Icons.Material.TwoTone.Login"
-                         IconColor="Color.Primary"
-                         Label="Sign In" />
-
-            <MudMenuItem Href="/"
-                         ForceLoad
-                         Icon="@Icons.Material.TwoTone.Logout"
-                         IconColor="Color.Primary"
-                         Label="Sign Out" />
-        </MudMenu>
-    </MudAppBar>
-
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-        <NavMenu />
-    </MudDrawer>
     <MudMainContent>
         @Body
-
     </MudMainContent>
-
 </MudLayout>
+
 @code {
-    bool _drawerOpen = true;
-    void DrawerToggle()
+    bool _drawerOpen = false;
+    bool _hideNavMenu = false;
+    private string? _role;
+    private bool _isLoggedIn = false;
+    public string Search { get; set; } = "";
+
+    private static readonly List<string> ManagementRoles = new()
     {
-        _drawerOpen = !_drawerOpen;
+        "Admin", "BranchManager", "BranchEmployee", "Factory",
+        "RevenueManager", "Shipper", "WarehouseManager"
+    };
+
+    private bool IsCustomerView => _isLoggedIn && _role == "Customer";
+    private bool IsGuestView => !_isLoggedIn;
+    private bool IsManagementView => _isLoggedIn && ManagementRoles.Contains(_role);
+    private bool IsAuthPage => NavManager.Uri.Contains("/login") || NavManager.Uri.Contains("/register");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshRole();
+        UpdateNavVisibility(NavManager.Uri);
+
+        NavManager.LocationChanged += async (s, e) =>
+        {
+            await RefreshRole();
+            UpdateNavVisibility(e.Location);
+            StateHasChanged();
+        };
+    }
+
+    private async Task RefreshRole()
+    {
+        var newRole = await TokenService.GetRoleAsync();
+        if (_role != newRole)
+        {
+            _role = newRole;
+            _isLoggedIn = !string.IsNullOrWhiteSpace(newRole);
+        }
+    }
+
+    void UpdateNavVisibility(string uri)
+    {
+        var path = new Uri(uri).AbsolutePath.ToLowerInvariant();
+        _hideNavMenu = !_isLoggedIn || path is "/login" or "/register" or "/";
+    }
+
+    void DrawerToggle() => _drawerOpen = !_drawerOpen;
+
+    void NavigateToCategory(int categoryId)
+    {
+        NavManager.NavigateTo($"/branch-products?categoryId={categoryId}");
     }
 }
+
+
+
+

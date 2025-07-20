@@ -1,70 +1,18 @@
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.js
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.min.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.min.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.rtl.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.min.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.rtl.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\index.html
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.rtl.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.rtl.min.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.min.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.min.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.min.js.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.js.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.esm.min.js.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.rtl.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.esm.js
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.min.js
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\js\print.js
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.min.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.js
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.rtl.min.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\css\app.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.min.js
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.min.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\sample-data\weather.json
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.min.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.esm.min.js
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.esm.js.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.min.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.rtl.min.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.min.css
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.rtl.min.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.min.js.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.min.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.min.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.css.map
-D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.js.map
 wwwroot\css\app.css
 wwwroot\favicon.png
 wwwroot\icon-192.png
 wwwroot\imgs\hotel.jpg
 wwwroot\imgs\Huỳnh Ngọc Luận_TD00468_SD1701.jpg
 wwwroot\imgs\Ji_Chang-Wook-.jpeg
+wwwroot\imgs\logo-MS.png
 wwwroot\imgs\Logo.png
 wwwroot\imgs\noImg.jpeg
 wwwroot\imgs\trangchu.jpg
 wwwroot\index.html
+wwwroot\js\logout.js
 wwwroot\js\print.js
-wwwroot\lib\bootstrap\dist\css\bootstrap.css
-wwwroot\lib\bootstrap\dist\css\bootstrap.css.map
-wwwroot\lib\bootstrap\dist\css\bootstrap.min.css
-wwwroot\lib\bootstrap\dist\css\bootstrap.min.css.map
-wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.css
-wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.css.map
-wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.min.css
-wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.min.css.map
+wwwroot\js\splide-init.js
+wwwroot\js\swiper-init.js
 wwwroot\lib\bootstrap\dist\css\bootstrap-grid.css
 wwwroot\lib\bootstrap\dist\css\bootstrap-grid.css.map
 wwwroot\lib\bootstrap\dist\css\bootstrap-grid.min.css
@@ -89,6 +37,14 @@ wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.css
 wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.css.map
 wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.min.css
 wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.min.css.map
+wwwroot\lib\bootstrap\dist\css\bootstrap.css
+wwwroot\lib\bootstrap\dist\css\bootstrap.css.map
+wwwroot\lib\bootstrap\dist\css\bootstrap.min.css
+wwwroot\lib\bootstrap\dist\css\bootstrap.min.css.map
+wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.css
+wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.css.map
+wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.min.css
+wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.min.css.map
 wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.js
 wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.js.map
 wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.min.js
@@ -102,3 +58,54 @@ wwwroot\lib\bootstrap\dist\js\bootstrap.js.map
 wwwroot\lib\bootstrap\dist\js\bootstrap.min.js
 wwwroot\lib\bootstrap\dist\js\bootstrap.min.js.map
 wwwroot\sample-data\weather.json
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\css\app.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\index.html
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\js\logout.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\js\print.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\js\splide-init.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\js\swiper-init.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.min.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.min.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.rtl.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.rtl.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.rtl.min.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-grid.rtl.min.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.min.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.min.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.rtl.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.rtl.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.rtl.min.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-reboot.rtl.min.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.min.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.min.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.min.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap-utilities.rtl.min.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.min.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.min.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.min.css
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\css\bootstrap.rtl.min.css.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.js.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.min.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.bundle.min.js.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.esm.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.esm.js.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.esm.min.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.esm.min.js.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.js.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.min.js
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\lib\bootstrap\dist\js\bootstrap.min.js.map
+D:\Dự án tốt nghiệp 2\MenShopBlazor\wwwroot\sample-data\weather.json

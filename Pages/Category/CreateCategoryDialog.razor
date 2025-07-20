@@ -27,7 +27,7 @@
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; }
 
-    private CreateCategoryDTO category = new();
+    private CreateUpdateCategoryDTO category = new();
 
     private async Task CreateCategoryAsync()
     {
@@ -38,13 +38,14 @@
         }
 
         var response = await CategoryService.CreateCategoryAsync(category);
-        if (response != null)
+        if (response.IsSuccess)
         {
             MudDialog.Close(DialogResult.Ok(true));
+            Snackbar.Add(response.Message ?? "Tạo danh mục thành công.", Severity.Success);
         }
         else
         {
-            Snackbar.Add("Tạo danh mục thất bại", Severity.Error);
+            Snackbar.Add(response.Message ?? "Đã xảy ra lỗi khi tạo danh mục.", Severity.Error);
         }
     }
 

@@ -1,0 +1,148 @@
+﻿@page "/list-color"
+
+@using MenShopBlazor.Services.Color
+@using MenShopBlazor.DTOs.Color
+@using MenShopBlazor.Shared
+@inject IColorService ColorService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+    <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    </MudOverlay>
+@if (!_loading)
+{
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH MÀU SẮC</MudText>
+
+            <MudDataGrid T="ColorDTO"
+                         Items="@colors"
+                         RowsPerPage="10"
+                         Dense="true"
+                         Filterable="true"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                <Columns>
+                    <PropertyColumn Property="x => x.ColorId" Title="MÃ MÀU" Editable="false" />
+                    <PropertyColumn Property="x => x.Name" Title="TÊN MÀU" />
+
+                    <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                        <CellTemplate>
+                            <MudStack Row>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Edit"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           OnClick="@(() => OpenEditDialog(context.Item))">
+                                    Sửa
+                                </MudButton>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Delete"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           Class="ml-2"
+                                           OnClick="@(() => DeleteColorAsync(context.Item.ColorId))">
+                                    Xoá
+                                </MudButton>
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+
+                <PagerContent>
+                    <MudDataGridPager T="ColorDTO" />
+                </PagerContent>
+            </MudDataGrid>
+
+            <MudButton Color="Color.Primary" Variant="Variant.Outlined"
+                       OnClick="OpenCreateDialog"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Class="mt-2 mb-3">
+                Thêm màu
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+}
+@code {
+    private List<BreadcrumbItem> _breadcrumbs = new();
+    private IEnumerable<ColorDTO> colors = new List<ColorDTO>();
+    private bool _loading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadColorsAsync();
+    }
+    private async Task LoadColorsAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = ColorService.GetColorDtos();
+
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
+
+        colors = loadTask.Result;
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+
+    private async Task DeleteColorAsync(int colorId)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá màu có ID = {colorId} không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await ColorService.DeleteColor(colorId);
+
+            if (response.IsSuccess)
+            {
+                Snackbar.Add(response.Message, Severity.Success);
+                await LoadColorsAsync();
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<CreateColorDialog>("THÊM MÀU", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadColorsAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(ColorDTO color)
+    {
+        var parameters = new DialogParameters { ["color"] = color };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = DialogService.Show<EditColorDialog>("CHỈNH SỬA MÀU", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadColorsAsync();
+        }
+    }
+}

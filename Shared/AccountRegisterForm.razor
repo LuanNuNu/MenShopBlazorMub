@@ -1,0 +1,73 @@
+﻿@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.Services.Account
+@inject IAccountService AccountService
+@using System.ComponentModel.DataAnnotations
+@using System.Text.RegularExpressions
+@inject ISnackbar Snackbar
+
+
+
+    <MudTextField Label="Họ và tên"
+                  @bind-Value="Model.FullName"
+                  Required="true"
+                  RequiredError="Họ và tên không được để trống" />
+
+    <MudTextField Label="Email"
+                  @bind-Value="Model.Email"
+                  Required="true"
+                  RequiredError="Email không được để trống"
+                  Validation="@(new EmailAddressAttribute { ErrorMessage = "Email không đúng định dạng." })" />
+
+    <MudTextField Label="Số điện thoại"
+                  @bind-Value="Model.PhoneNumber"
+                  Required="true"
+                  RequiredError="Số điện thoại không được để trống"
+                  Validation="@(new RegularExpressionAttribute(@"^(0\d{9})$") { ErrorMessage = "Số điện thoại phải bắt đầu bằng 0 và có 10 chữ số." })" />
+
+    <MudTextField Label="Mật khẩu"
+                  @bind-Value="Model.Password"
+                  InputType="@PasswordInput"
+                  Required="true"
+                  RequiredError="Mật khẩu không được để trống"
+                  Validation="@(new Func<string, IEnumerable<string>>(ValidatePassword))"
+                  Adornment="Adornment.End"
+                  AdornmentIcon="@PasswordInputIcon"
+                  OnAdornmentClick="TogglePasswordVisibility"
+                  AdornmentAriaLabel="Hiển thị/Ẩn mật khẩu" />
+
+    <MudDatePicker Label="Ngày sinh"
+                   @bind-Date="Model.BirthDate"
+                   MaxDate="@DateTime.Today"
+                   PickerVariant="PickerVariant.Inline" />
+
+    <MudRadioGroup T="bool" @bind-Value="@Model.Gender">
+        <MudRadio Value="true" Label="Nam" />
+        <MudRadio Value="false" Label="Nữ" />
+    </MudRadioGroup>
+
+
+@code {
+    [Parameter] public AccountRegisterDTO Model { get; set; } = new();
+    private bool isShowPassword = false;
+    private InputType PasswordInput = InputType.Password;
+    private string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    private void TogglePasswordVisibility()
+    {
+        isShowPassword = !isShowPassword;
+        PasswordInput = isShowPassword ? InputType.Text : InputType.Password;
+        PasswordInputIcon = isShowPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
+    }
+
+    private IEnumerable<string> ValidatePassword(string pw)
+    {
+        if (string.IsNullOrWhiteSpace(pw))
+        {
+            yield return "Mật khẩu không được để trống";
+            yield break;
+        }
+        if (pw.Length < 6)
+            yield return "Mật khẩu ít nhất 6 ký tự";
+    }
+}
+

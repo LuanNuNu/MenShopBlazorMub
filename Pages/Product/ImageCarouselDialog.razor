@@ -14,21 +14,23 @@
                      ShowArrows="true"
                      Class="mud-width-full"
                      Style="height:200px;"
-                     AutoCycle="@autocycle">
+                     AutoCycle="@autocycle"
+                     SelectedIndex="@activeIndex"
+                     SelectedIndexChanged="@(i => activeIndex = i)">
             @foreach (var img in Images)
             {
                 <MudCarouselItem>
                     <div style="position: relative; width: 100%; height: 100%;">
                         <img src="@img.FullPath"
-                             class="w-100 h-100 object-fit-contain" />
-                             <MudTooltip Text="Xóa ảnh" Arrow="true" Placement="Placement.Top">
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                               Color="Color.Error"
-                                               Size="Size.Small"
-                                               Style="top: 16px; right: 6px;"
-                                               Class="position-absolute bg-white"
-                                               OnClick="@(() => DeleteImageAsync(img.Id))" />
-                             </MudTooltip>
+                        class="w-100 h-100 object-fit-contain" />
+                        <MudTooltip Text="Xóa ảnh" Arrow="true" Placement="Placement.Top">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                            Color="Color.Error"
+                            Size="Size.Small"
+                            Style="top: 16px; right: 6px;"
+                            Class="position-absolute bg-white"
+                            OnClick="@(() => DeleteImageAsync(img.Id))" />
+                        </MudTooltip>
                     </div>
                 </MudCarouselItem>
 
@@ -81,11 +83,19 @@
 
     [Parameter]
     public List<ImageProductViewModel> Images { get; set; } = new();
+    private int activeIndex = 0;
+
+
 
     private bool autocycle = false;
     private List<PreviewImage> previewImages = new();
     [Parameter]
     public EventCallback OnImagesSaved { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadImagesFromDetailAsync(DetailId);
+    }
+
 
 
     private async Task OnFilesSelected(IBrowserFile file)
@@ -145,22 +155,29 @@
             Snackbar.Add(res.Message, severity);
         }
         previewImages.Clear();
-        StateHasChanged();
         await ReloadImagesFromDetailAsync(DetailId);
         if (OnImagesSaved.HasDelegate)
         {
             await OnImagesSaved.InvokeAsync();
         }
+        StateHasChanged();
     }
 
 
     private async Task ReloadImagesFromDetailAsync(int detailId)
     {
         var result = await ProductService.GetImageProductDetailsAsync(detailId);
-        Images = result?.ToList() ?? new List<ImageProductViewModel>();
+
+        Images.Clear();
+        Images.AddRange(result ?? new List<ImageProductViewModel>());
+
+        if (activeIndex >= Images.Count)
+        {
+            activeIndex = Math.Max(Images.Count - 1, 0);
+        }
+
+        StateHasChanged();
     }
-
-
 
     private async Task DeleteImageAsync(int imageId)
     {
@@ -184,14 +201,14 @@
         if (!result.Canceled)
         {
             var isSuccess = await ProductService.DeleteImageProductDetailAsync(imageId);
-            if (isSuccess.Success)
+            if (isSuccess.IsSuccess)
             {
                 Snackbar.Add("Đã xoá ảnh thành công", Severity.Success);
                 await ReloadImagesFromDetailAsync(DetailId);
-
+                StateHasChanged();
                 if (OnImagesSaved.HasDelegate)
                 {
-                    await OnImagesSaved.InvokeAsync(); // Cập nhật cha
+                    await OnImagesSaved.InvokeAsync(); 
                 }
             }
             else

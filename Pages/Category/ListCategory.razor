@@ -1,224 +1,218 @@
-﻿    @page "/list-category"
+﻿@page "/list-category"
 
-    @using MenShopBlazor.Services.Category;
-    @using MenShopBlazor.DTOs.Category;
-    @using MenShopBlazor.Shared;
-    @inject ICategoryService CategoryService
-    @inject IDialogService DialogService
+@using MenShopBlazor.Services.Category;
+@using MenShopBlazor.DTOs.Category;
+@using MenShopBlazor.Shared;
+@inject ICategoryService CategoryService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+    <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary"  />
+    </MudOverlay>
+@if (!_loading)
+{
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
 
 
+        <MudGrid>
+            <MudItem xs="12">
+                <MudText Typo="Typo.h5" Class="mb-4">DANH MỤC SẢN PHẨM</MudText>
 
-<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
-    <MudGrid>
-        <MudItem xs="12">
-        <MudText Typo="Typo.h5" Class="mb-4">DANH MỤC SẢN PHẨM</MudText>
-    @if (showAlert)
-    {
-        <MudAlert Severity="@alertSeverity" Variant="Variant.Outlined" Dense="true" Elevation="0" Class="mb-3">
-            @alertMessage
-        </MudAlert>
-    }
+                <MudDataGrid T="CategoryProductViewModel"
+                Items="@categories"
+                Filterable="true"
+                FilterMode="DataGridFilterMode.ColumnFilterRow"
+                Dense="true"
+                FixedHeader="true">
 
-        <MudDataGrid T="CategoryModelView"
-                     Items="@categories"
-                     Filterable="true"
-                     FilterMode="DataGridFilterMode.ColumnFilterRow"
-                 Dense="true"
-                     FixedHeader="true">
-
-            <Columns>
-                <PropertyColumn Property="x => x.CategoryId" Title="MÃ DANH MỤC" Editable="false" />
-                <PropertyColumn Property="x => x.Name" Title="TÊN DANH MỤC" Editable="true">
-                    <FilterTemplate>
-                    <MudTooltip Text="Lọc danh mục">
-                        <MudIconButton OnClick="@OpenFilter" Icon="@_icon" Size="Size.Small" />
-                    </MudTooltip>
-                        <MudOverlay Visible="@_filterOpen" OnClick="@(() => _filterOpen = false)" />
-                        <MudPopover Open="@_filterOpen" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Style="width:200px">
-                            <MudStack Spacing="0">
-                                <MudCheckBox Label="Chọn tất cả" T="bool" Value="@_selectAll" ValueChanged="SelectAll" />
-                                <MudStack Spacing="0" Style="overflow-y:auto; max-height:200px">
-                                    @foreach (var item in context.Items)
-                                    {
-                                        <MudCheckBox Label="@item.Name"
-                                                     T="bool"
-                                                     Value="@(_selectedItems.Contains(item))"
-                                                     ValueChanged="@((value) => SelectedChanged(value, item))" />
-                                    }
+                    <Columns>
+                        <PropertyColumn Property="x => x.CategoryId" Title="MÃ DANH MỤC" Editable="false" />
+                        <PropertyColumn Property="x => x.Name" Title="TÊN DANH MỤC" Editable="true">
+                            <FilterTemplate>
+                                <MudTooltip Text="Lọc danh mục">
+                                    <MudIconButton OnClick="@OpenFilter" Icon="@_icon" Size="Size.Small" />
+                                </MudTooltip>
+                                <MudOverlay Visible="@_filterOpen" OnClick="@(() => _filterOpen = false)" />
+                                <MudPopover Open="@_filterOpen" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Style="width:200px">
+                                    <MudStack Spacing="0">
+                                        <MudCheckBox Label="Chọn tất cả" T="bool" Value="@_selectAll" ValueChanged="SelectAll" />
+                                        <MudStack Spacing="0" Style="overflow-y:auto; max-height:200px">
+                                            @foreach (var item in context.Items)
+                                            {
+                                                <MudCheckBox Label="@item.Name"
+                                                T="bool"
+                                                Value="@(_selectedItems.Contains(item))"
+                                                ValueChanged="@((value) => SelectedChanged(value, item))" />
+                                            }
+                                        </MudStack>
+                                    <MudStack Row="true">
+                                        <MudButton OnClick="@(() => ClearFilterAsync(context))">Xoá lọc</MudButton>
+                                        <MudButton Color="Color.Primary" OnClick="@(() => ApplyFilterAsync(context))">Lọc</MudButton>
+                                    </MudStack>
                                 </MudStack>
-                                <MudStack Row="true">
-                                    <MudButton OnClick="@(() => ClearFilterAsync(context))">Xoá lọc</MudButton>
-                                    <MudButton Color="Color.Primary" OnClick="@(() => ApplyFilterAsync(context))">Lọc</MudButton>
-                                </MudStack>
-                            </MudStack>
-                        </MudPopover>
-                    </FilterTemplate>
-                </PropertyColumn>
+                            </MudPopover>
+                        </FilterTemplate>
+                    </PropertyColumn>
 
-            <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
-                    <CellTemplate>
-                        <MudStack Row>
-                        <MudButton StartIcon="@Icons.Material.Outlined.Edit"
-                                       Size="Size.Small"
-                                        Color="Color.Primary"
-                                   OnClick="@(() => OpenEditDialog(context.Item))">
-                                   Sửa
-                        </MudButton>
-                        <MudButton StartIcon="@Icons.Material.Outlined.Delete"
+                    <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                        <CellTemplate>
+                            <MudStack Row>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Edit"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           OnClick="@(() => OpenEditDialog(context.Item))">
+                                    Sửa
+                                </MudButton>
+                                <MudButton StartIcon="@Icons.Material.Outlined.Delete"
                                            Color="Color.Error"
                                            Size="Size.Small"
                                            Class="ml-2"
-                                   OnClick="@(async () => await DeleteCategory(context.Item.CategoryId))">Xóa </MudButton>
-                        </MudStack>
-                    </CellTemplate>
-                </TemplateColumn>
+                                           OnClick="@(async () => await DeleteCategory(context.Item.CategoryId))">
+                                    Xóa
+                                </MudButton>
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
 
+                <PagerContent>
+                    <MudDataGridPager T="CategoryProductViewModel" />
+                </PagerContent>
+            </MudDataGrid>
 
-
-            </Columns>
-
-
-            <PagerContent>
-                <MudDataGridPager T="CategoryModelView" />
-            </PagerContent>
-        </MudDataGrid>
-            <MudButton Color="Color.Primary" Variant="Variant.Outlined"  OnClick="OpenCreateDialog" StartIcon="@Icons.Material.Filled.Add" Class=" mt-2 mb-3">
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Outlined"
+                       OnClick="OpenCreateDialog"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Class="mt-2 mb-3">
                 Thêm danh mục
             </MudButton>
         </MudItem>
     </MudGrid>
 </MudContainer>
-
+}
 @code {
-        private IEnumerable<CategoryModelView> categories = new List<CategoryModelView>();
-        private HashSet<CategoryModelView> _selectedItems = new();
-        private HashSet<CategoryModelView> _filterItems = new();
-        private FilterDefinition<CategoryModelView> _filterDefinition;
-        private bool _filterOpen = false;
-        private bool _selectAll = true;
-        private string _icon = Icons.Material.Outlined.FilterAlt;
+    private IEnumerable<CategoryProductViewModel> categories = new List<CategoryProductViewModel>();
+    private HashSet<CategoryProductViewModel> _selectedItems = new();
+    private HashSet<CategoryProductViewModel> _filterItems = new();
+    private FilterDefinition<CategoryProductViewModel> _filterDefinition;
+    private bool _filterOpen = false;
+    private bool _selectAll = true;
+    private string _icon = Icons.Material.Outlined.FilterAlt;
+    private bool _loading = false; 
 
-        private string? alertMessage;
-        private Severity alertSeverity;
-        private bool showAlert = false;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+    }
 
+    private async Task LoadCategoriesAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        var loadTask = CategoryService.GetAllCategoriesAsync();
 
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
 
+        categories = loadTask.Result;
 
-        protected override async Task OnInitializedAsync()
-        {
-            categories = await CategoryService.GetAllCategoriesAsync();
+        _selectedItems = categories.ToHashSet();
+        _filterItems = categories.ToHashSet();
+
+        _filterDefinition = new FilterDefinition<CategoryProductViewModel>
+            {
+                FilterFunction = x => _filterItems.Contains(x)
+            };
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    void OpenFilter() => _filterOpen = true;
+
+    private void SelectedChanged(bool value, CategoryProductViewModel item)
+    {
+        if (value)
+            _selectedItems.Add(item);
+        else
+            _selectedItems.Remove(item);
+
+        _selectAll = _selectedItems.Count == categories.Count();
+    }
+
+    private async Task ClearFilterAsync(FilterContext<CategoryProductViewModel> context)
+    {
+        _selectedItems = categories.ToHashSet();
+        _filterItems = categories.ToHashSet();
+        _icon = Icons.Material.Outlined.FilterAlt;
+        await context.Actions.ClearFilterAsync(_filterDefinition);
+        _filterOpen = false;
+    }
+
+    private async Task ApplyFilterAsync(FilterContext<CategoryProductViewModel> context)
+    {
+        _filterItems = _selectedItems.ToHashSet();
+        _icon = _filterItems.Count == categories.Count()
+            ? Icons.Material.Outlined.FilterAlt
+            : Icons.Material.Filled.FilterAlt;
+        await context.Actions.ApplyFilterAsync(_filterDefinition);
+        _filterOpen = false;
+    }
+
+    private void SelectAll(bool value)
+    {
+        _selectAll = value;
+        if (value)
             _selectedItems = categories.ToHashSet();
-            _filterItems = categories.ToHashSet();
-
-            _filterDefinition = new FilterDefinition<CategoryModelView>
-                {
-                    FilterFunction = x => _filterItems.Contains(x)
-                };
-        }
-
-        void OpenFilter()
-        {
-            _filterOpen = true;
-        }
-
-        private void SelectedChanged(bool value, CategoryModelView item)
-        {
-            if (value)
-                _selectedItems.Add(item);
-            else
-                _selectedItems.Remove(item);
-
-            _selectAll = _selectedItems.Count == categories.Count();
-        }
-
-        private async Task ClearFilterAsync(FilterContext<CategoryModelView> context)
-        {
-            _selectedItems = categories.ToHashSet();
-            _filterItems = categories.ToHashSet();
-            _icon = Icons.Material.Outlined.FilterAlt;
-            await context.Actions.ClearFilterAsync(_filterDefinition);
-            _filterOpen = false;
-        }
-
-        private async Task ApplyFilterAsync(FilterContext<CategoryModelView> context)
-        {
-            _filterItems = _selectedItems.ToHashSet();
-            _icon = _filterItems.Count == categories.Count()
-                ? Icons.Material.Outlined.FilterAlt
-                : Icons.Material.Filled.FilterAlt;
-            await context.Actions.ApplyFilterAsync(_filterDefinition);
-            _filterOpen = false;
-        }
-
-        private void SelectAll(bool value)
-        {
-            _selectAll = value;
-            if (value)
-                _selectedItems = categories.ToHashSet();
-            else
-                _selectedItems.Clear();
-        }
+        else
+            _selectedItems.Clear();
+    }
 
     private async Task DeleteCategory(int id)
     {
         var parameters = new DialogParameters
-    {
-        { nameof(ConfirmDeleteDialog.ContentText), $"Bạn có chắc muốn xoá danh mục với ID = {id} không?" },
-        { nameof(ConfirmDeleteDialog.ButtonText), "Xoá" },
-        { nameof(ConfirmDeleteDialog.Color), Color.Error }
-    };
+        {
+            { nameof(ConfirmDeleteDialog.ContentText), $"Bạn có chắc muốn xoá danh mục với ID = {id} không?" },
+            { nameof(ConfirmDeleteDialog.ButtonText), "Xoá" },
+            { nameof(ConfirmDeleteDialog.Color), Color.Error }
+        };
 
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
-
         var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
         var result = await dialog.Result;
 
         if (!result.Canceled)
         {
             var response = await CategoryService.DeleteCategoryAsync(id);
-            await ReloadCategories();
+            await LoadCategoriesAsync();
 
-            if (response.Success)
-                await ShowAlertAsync(response.Message, Severity.Success);
+            if (response.IsSuccess)
+                Snackbar.Add(response.Message, Severity.Success);
             else
-                await ShowAlertAsync(response.Message, Severity.Error);
+                Snackbar.Add(response.Message, Severity.Error);
         }
-
     }
 
+    private async Task ReloadCategories()
+    {
+        await LoadCategoriesAsync();
+    }
 
-        private async Task ReloadCategories()
-        {
-            categories = await CategoryService.GetAllCategoriesAsync();
-            StateHasChanged();
-        }
-
-
-
-    private async Task OpenEditDialog(CategoryModelView item)
+    private async Task OpenEditDialog(CategoryProductViewModel item)
     {
         var parameters = new DialogParameters { ["Category"] = item };
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
-
         var dialog = DialogService.Show<EditCategoryDialog>("CHỈNH SỬA DANH MỤC", parameters, options);
         var result = await dialog.Result;
 
         if (!result.Canceled)
         {
-            await ReloadCategories();
+            await LoadCategoriesAsync();
         }
     }
-    private async Task ShowAlertAsync(string message, Severity severity, int duration = 3500)
-    {
-        alertMessage = message;
-        alertSeverity = severity;
-        showAlert = true;
-        StateHasChanged();
-        await Task.Delay(duration);
-        showAlert = false;
-        StateHasChanged();
-    }
+
     private async Task OpenCreateDialog()
     {
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
@@ -227,8 +221,7 @@
 
         if (!result.Canceled)
         {
-            await ReloadCategories();
-            await ShowAlertAsync("Tạo danh mục thành công", Severity.Success);
+            await LoadCategoriesAsync();
         }
     }
 }

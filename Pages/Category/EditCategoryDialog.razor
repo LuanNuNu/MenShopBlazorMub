@@ -22,13 +22,13 @@
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; }
 
-    [Parameter] public CategoryModelView Category { get; set; }
+    [Parameter] public CategoryProductViewModel Category { get; set; }
 
-    private CategoryModelView _category = new();
+    private CreateUpdateCategoryDTO _category = new();
 
     protected override void OnInitialized()
     {
-        _category = new CategoryModelView
+        _category = new CreateUpdateCategoryDTO
         {
             CategoryId = Category.CategoryId,
             Name = Category.Name
@@ -42,9 +42,20 @@
             Snackbar.Add("Tên danh mục không được để trống", Severity.Warning);
             return;
         }
-        await CategoryService.UpdateCategoryAsync(_category);
-        MudDialog.Close(DialogResult.Ok(true));
+
+        var response = await CategoryService.UpdateCategoryAsync(Category.CategoryId,_category);
+
+        if (response.IsSuccess)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+            Snackbar.Add(response.Message ?? "Cập nhật thành công.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add(response.Message ?? "Đã xảy ra lỗi.", Severity.Error);
+        }
     }
+
 
     private void Cancel()
     {

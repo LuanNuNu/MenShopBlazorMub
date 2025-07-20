@@ -1,0 +1,29 @@
+﻿@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.Shared
+
+@using MenShopBlazor.Services.Branch
+@inject IBranchService BranchService
+
+
+<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudBreadcrumbs Items="BreadcrumbItems" />
+    <MudText Typo="Typo.h5" Class="mb-4">QUẢN LÝ TỒN KHO SẢN PHẨM</MudText>
+    <MudDataGrid T="BranchProductDetailModel" Items="ProductDetails">
+        <Columns>
+            <PropertyColumn Property="x => x.ColorName" Title="Màu" />
+            <PropertyColumn Property="x => x.SizeName" Title="Size" />
+            <PropertyColumn Property="x => x.FabricName" Title="Chất liệu" />
+            <PropertyColumn Property="x => x.Quantity" Title="Số lượng" />
+            <PropertyColumn Property="x => x.SellPrice" Title="Giá bán" />
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="BranchProductDetailModel" />
+        </PagerContent>
+    </MudDataGrid>
+</MudContainer>
+
+@code {
+    [Parameter] public List<BranchProductDetailModel> ProductDetails { get; set; }
+    [Parameter] public List<BreadcrumbItem> BreadcrumbItems { get; set; }
+}

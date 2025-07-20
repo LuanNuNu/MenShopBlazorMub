@@ -12,12 +12,12 @@ namespace MenShopBlazor.Services.Payment
 {
     public class PaymentService : IPaymentService
     {
-        private readonly HttpClient _http;
-        private const string baseUrl = "http://localhost:5014/api/Payment";
+        private readonly HttpClient _httpClient;
+        private const string baseUrl = "http://localhost:7094/api/Payment";
 
-        public PaymentService(HttpClient http)
+        public PaymentService(IHttpClientFactory httpClientFactory)
         {
-            _http = http;
+            _httpClient = httpClientFactory.CreateClient("AuthorizedClient");
         }
 
 
@@ -25,7 +25,7 @@ namespace MenShopBlazor.Services.Payment
         {
             var json = JsonConvert.SerializeObject(model);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await _http.PostAsync($"{baseUrl}/create-vnpay-payment", content);
+            var response = await _httpClient.PostAsync($"{baseUrl}/create-vnpay-payment", content);
             var result = await response.Content.ReadAsStringAsync();
 
             var obj = JsonConvert.DeserializeObject<VnPayUrlResponseModel>(result);
@@ -37,7 +37,7 @@ namespace MenShopBlazor.Services.Payment
             var json = JsonConvert.SerializeObject(dto);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _http.PostAsync($"{baseUrl}/api/payments/{orderId}", content);
+            var response = await _httpClient.PostAsync($"{baseUrl}/api/payments/{orderId}", content);
             var result = await response.Content.ReadAsStringAsync();
 
             return JsonConvert.DeserializeObject<PaymentResponseDTO>(result);
@@ -45,7 +45,7 @@ namespace MenShopBlazor.Services.Payment
 
         public async Task<VnPaymentResponseModel> HandleVNPayCallbackAsync(string queryString)
         {
-            var response = await _http.GetAsync($"{baseUrl}/PaymentCallbackVnpay{queryString}");
+            var response = await _httpClient.GetAsync($"{baseUrl}/PaymentCallbackVnpay{queryString}");
 
             if (!response.IsSuccessStatusCode)
             {

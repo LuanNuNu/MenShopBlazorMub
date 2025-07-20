@@ -1,0 +1,52 @@
+﻿
+@page "/login"
+@page "/register"
+
+@inject NavigationManager NavManager
+
+<MudContainer Class="mt-10 px-8" MaxWidth="MaxWidth.Small">
+        <MudItem xs="12" Class="pa-4">
+        <MudTabs Rounded="true"
+                 ActivePanelIndex="@activeTabIndex"
+                 ActivePanelIndexChanged="@OnTabChanged">
+            <MudTabPanel Text="Đăng nhập">
+                <LoginForm OnSuccess="@OnLoginSuccess"
+                           OnChangeTab="@ChangeTab" />
+            </MudTabPanel>
+            <MudTabPanel Text="Đăng ký">
+                <RegisterForm OnSuccess="@OnRegisterSuccess" OnChangeTab="@ChangeTab" />
+            </MudTabPanel>
+        </MudTabs>
+
+
+        </MudItem>
+</MudContainer>
+
+@code {
+    int activeTabIndex = 0;
+
+    void OnTabChanged(int index)
+    {
+        activeTabIndex = index;
+        var url = index == 1 ? "/register" : "/login";
+        NavManager.NavigateTo(url, forceLoad: false);
+    }
+
+    void ChangeTab(int index)
+    {
+        activeTabIndex = index;
+        var url = index == 1 ? "/register" : "/login";
+        NavManager.NavigateTo(url, forceLoad: false);
+    }
+
+    void OnLoginSuccess()
+    {
+        NavManager.NavigateTo("/list-category");
+    }
+
+    void OnRegisterSuccess()
+    {
+        activeTabIndex = 0;
+        NavManager.NavigateTo("/login");
+    }
+}

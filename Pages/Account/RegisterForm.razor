@@ -1,0 +1,68 @@
+﻿
+@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.Services.Account
+@inject IAccountService AccountService
+@inject ISnackbar Snackbar
+@using MenShopBlazor.Shared
+
+<MudForm Elevation="25" @ref="form" @bind-IsValid="isValid">
+    <MudPaper Class="pa-4">
+        <AccountRegisterForm Model="model"/>
+
+        <MudStack Spacing="2" Class="mt-4">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Disabled="!isValid"
+                       OnClick="Submit">
+                Đăng ký
+            </MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Secondary"
+                       OnClick="@(() => form.ResetAsync())">
+                Xóa
+            </MudButton>
+            <MudText Class="my-4">
+                Bạn đã có tài khoản?
+                <MudLink OnClick="ChangeToLoginTab">Đăng nhập ngay</MudLink>
+            </MudText>
+        </MudStack>
+    </MudPaper>
+</MudForm>
+
+@code {
+    private MudForm form;
+    private bool isValid;
+    private AccountRegisterDTO model = new();
+
+    [Parameter]
+    public EventCallback OnSuccess { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnChangeTab { get; set; }
+
+    private async Task ChangeToLoginTab()
+    {
+        if (OnChangeTab.HasDelegate)
+            await OnChangeTab.InvokeAsync(0);
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (!isValid) return;
+
+        var response = await AccountService.RegisterAsync(model);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add("Đăng ký thành công!", Severity.Success);
+            if (OnSuccess.HasDelegate)
+                await OnSuccess.InvokeAsync();
+        }
+        else
+        {
+            Snackbar.Add(response.Message, Severity.Error);
+        }
+    }
+}
+
+
