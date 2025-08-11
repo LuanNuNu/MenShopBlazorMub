@@ -1,26 +1,83 @@
 ﻿@using MenShopBlazor.Services.Branch;
+@using MenShopBlazor.DTOs.AddressDTO
 @using MenShopBlazor.DTOs.Branch;
 @using MenShopBlazor.Services.Admin;
 @using MenShopBlazor.DTOs.Product;
+@using MenShopBlazor.Services.Address
+@inject IAddressService AddressService
 @inject IBranchService BranchService
 @inject IAdminService AdminService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@using static MenShopBlazor.DTOs.AddressDTO.AddressDTO;
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">CẬP NHẬT CHI NHÁNH</MudText>
     </TitleContent>
     <DialogContent>
+
         <MudTextField @bind-Value="_branch.Name"
                       Label="Tên Chi nhánh"
                       Required="true"
                       Immediate="true"
                       Margin="Margin.Dense"
                       Variant="Variant.Outlined" />
-        <MudTextField @bind-Value="_branch.Address"
-                      Label="Địa chỉ"
+
+            @if (_branch.Address != null)
+            {
+            <MudSelect T="int"
+                       Label="Tỉnh/Thành phố"
+                       Required="true"
+                       RequiredError="Vui lòng chọn Tỉnh/Thành phố"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined"
+                       Value="_branch.Address.ProvinceId ?? 0"
+                       ValueChanged="HandleProvinceChange"
+                       Disabled="Districts.Count == 0">
+                @foreach (var p in Provinces)
+                {
+                    <MudSelectItem Value="@p.Code">@p.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+
+            <MudSelect T="int"
+                       Label="Quận/Huyện"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined"
+                       Value="_branch.Address.DistrictId ?? 0"
+                       ValueChanged="HandleDistrictChange"
+                       Required="true"
+                       Disabled="Districts.Count == 0">
+                @foreach (var d in Districts)
+                {
+                    <MudSelectItem Value="@d.Code">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="int"
+                       Label="Phường/Xã"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined"
+                       Value="_branch.Address.WardId ?? 0"
+                       ValueChanged="HandleWardChange"
+                       Required="true"
+                       Disabled="Wards.Count == 0">
+                @foreach (var w in Wards)
+                {
+                    <MudSelectItem Value="@w.Code">@w.Name</MudSelectItem>
+                }
+            </MudSelect>
+            }
+        <MudTextField @bind-Value="branch.Address.Street"
+                      Label="Số nhà/Tên đường"
                       Required="true"
-                      Immediate="true"
+                      RequiredError="Vui lòng nhập Số nhà/Tên đường"
                       Margin="Margin.Dense"
                       Variant="Variant.Outlined" />
         <MudRadioGroup T="bool" @bind-Value="_branch.IsOnline">
@@ -42,10 +99,13 @@
 
     [Parameter]
     public CreateUpdateBranchDTO _branch { get; set; } = new();
-
+    private List<ProvinceDTO> Provinces = new();
+    private List<DistrictDTO> Districts = new();
+    private List<WardDTO> Wards = new();
 
     protected override async Task OnInitializedAsync()
     {
+        Provinces = await AddressService.GetProvincesAsync();
         _branch = new CreateUpdateBranchDTO
         {
             Name = branch.Name,
@@ -53,6 +113,15 @@
             IsOnline = branch.IsOnline
 
         };
+        if (_branch.Address?.ProvinceId != null)
+        {
+            Districts = await AddressService.GetDistrictsByProvinceAsync(_branch.Address.ProvinceId.Value);
+        }
+
+        if (_branch.Address?.DistrictId != null)
+        {
+            Wards = await AddressService.GetWardsByDistrictAsync(_branch.Address.DistrictId.Value);
+        }
     }
 
     private async Task Update()
@@ -62,12 +131,6 @@
             Snackbar.Add("Tên chi nhánh không được để trống", Severity.Warning);
             return;
         }
-        if (string.IsNullOrWhiteSpace(branch.Address))
-        {
-            Snackbar.Add("Địa chỉ không được để trống", Severity.Warning);
-            return;
-        }
-
         var response = await BranchService.UpdateBranchAsync(branch.BranchId,_branch);
 
         if (response != null && response.IsSuccess)
@@ -84,5 +147,56 @@
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private async Task HandleProvinceChange(int selectedId)
+    {
+        var selected = Provinces.FirstOrDefault(p => p.Code == selectedId);
+        if (selected != null)
+        {
+            _branch.Address??= new AddressInfo();
+            _branch.Address.ProvinceName = selected.Name;
+            _branch.Address.ProvinceId = selected.Code;
+
+            Districts = await AddressService.GetDistrictsByProvinceAsync(selected.Code);
+            Wards.Clear();
+
+            _branch.Address.DistrictId = null;
+            _branch.Address.DistrictName = null;
+            _branch.Address.WardId = null;
+            _branch.Address.WardName = null;
+
+            StateHasChanged();
+        }
+    }
+    private async Task HandleDistrictChange(int selectedId)
+    {
+        var selected = Districts.FirstOrDefault(d => d.Code == selectedId);
+        if (selected != null)
+        {
+            _branch.Address ??= new AddressInfo();
+            _branch.Address.DistrictName = selected.Name;
+            _branch.Address.DistrictId = selected.Code;
+
+            Wards = await AddressService.GetWardsByDistrictAsync(selected.Code);
+
+            _branch.Address.WardId = null;
+            _branch.Address.WardName = null;
+
+            StateHasChanged();
+        }
+    }
+
+    private Task HandleWardChange(int selectedId)
+    {
+        var selected = Wards.FirstOrDefault(w => w.Code == selectedId);
+        if (selected != null)
+        {
+            _branch.Address ??= new AddressInfo();
+            _branch.Address.WardId = selected.Code;
+            _branch.Address.WardName = selected.Name;
+        }
+
+        return Task.CompletedTask;
     }
 }

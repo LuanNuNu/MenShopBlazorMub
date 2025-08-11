@@ -1,0 +1,89 @@
+﻿@using MenShopBlazor.DTOs.Category
+@using MenShopBlazor.Services.Category
+@using MenShopBlazor.Services.Collection
+@using MenShopBlazor.DTOs.Collection.ViewModel
+@inject ICollectionService CollectionService
+@inject ICategoryService CategoryService
+
+<MudHidden Breakpoint="Breakpoint.MdAndDown">
+    <MudStack Row="true" Spacing="2">
+        @if (_loading)
+        {
+            <MudText>Đang tải menu...</MudText>
+        }
+        else
+        {
+            @foreach (var group in GroupedCategories)
+            {
+                <MudMenu Label="@group.Key">
+                    @foreach (var cat in group)
+                    {
+                        <MudMenuItem OnClick="@(() => NavigateToCategory(cat.CategoryId))">@cat.Name</MudMenuItem>
+                    }
+                </MudMenu>
+            }
+        }
+            <MudMenu Label="Bộ sưu tập">
+                 <MudMenuItem OnClick="@(() => NavigateToCategory(collection.CollectionId))">@collection.CollectionName</MudMenuItem>
+            </MudMenu>
+    </MudStack>
+</MudHidden>
+
+@code {
+    [Parameter] public EventCallback<int> OnCategorySelected { get; set; }
+
+    private bool _loading = false;
+    private IEnumerable<CategoryProductViewModel> categories = new List<CategoryProductViewModel>();
+    private CollectionViewModel collection = new();
+
+    private IEnumerable<IGrouping<string, CategoryProductViewModel>> GroupedCategories => categories
+        .GroupBy(c => GetCategoryGroupName(c.Name));
+
+    private string GetCategoryGroupName(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return "Khác";
+
+        var lowerName = name.ToLower();
+
+        if (lowerName.Contains("áo")) return "ÁO";
+        if (lowerName.Contains("quần")) return "QUẦN";
+        if (lowerName.Contains("giày") || lowerName.Contains("sneaker")) return "GIÀY";
+
+        return "Khác";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+        await LoadCollection();
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = CategoryService.GetAllCategoriesAsync();
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
+
+        categories = loadTask.Result;
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void NavigateToCategory(int categoryId)
+    {
+        OnCategorySelected.InvokeAsync(categoryId);
+    }
+
+    private async Task LoadCollection()
+    {
+        var reponse = await CollectionService.GetCurrentCollection();
+        if (reponse.IsSuccess)
+        {
+            collection = reponse?.Data ?? new CollectionViewModel();
+        }
+    }
+}

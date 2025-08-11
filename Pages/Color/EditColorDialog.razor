@@ -2,6 +2,9 @@
 @using MenShopBlazor.DTOs.Color
 @inject IColorService ColorService
 @inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
 
 <MudDialog>
     <TitleContent>

@@ -1,11 +1,17 @@
+C:\Users\huynh\.nuget\packages\chartjs.blazor.fork\2.0.2\contentFiles\any\netstandard2.1\wwwroot\ChartJsBlazorInterop.js
 wwwroot\css\app.css
 wwwroot\favicon.png
 wwwroot\icon-192.png
+wwwroot\imgs\banerShip.jpg
+wwwroot\imgs\banner1.png
+wwwroot\imgs\banner2.png
+wwwroot\imgs\banner3.png
 wwwroot\imgs\hotel.jpg
 wwwroot\imgs\Huỳnh Ngọc Luận_TD00468_SD1701.jpg
 wwwroot\imgs\Ji_Chang-Wook-.jpeg
 wwwroot\imgs\logo-MS.png
 wwwroot\imgs\Logo.png
+wwwroot\imgs\no-cart.png
 wwwroot\imgs\noImg.jpeg
 wwwroot\imgs\trangchu.jpg
 wwwroot\index.html

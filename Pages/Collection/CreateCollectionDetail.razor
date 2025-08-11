@@ -1,0 +1,164 @@
+﻿@using MenShopBlazor.DTOs.Collection
+@using MenShopBlazor.DTOs.Collection.CreateandUpdate
+@using MenShopBlazor.DTOs.Collection.ViewModel
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.Services.Collection
+@using MenShopBlazor.Services.CollectionService
+@using MenShopBlazor.Services.Product
+@inject ICollectionService CollectionService
+@inject IProductService ProductService
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">Thêm chi tiết bộ sưu tập mới</MudText>
+        <MudGrid Class="mb-2">
+            <MudItem xs="12" sm="7">
+                <MudPaper Class="pa-4">
+                    <MudAutocomplete T="ProductViewModel"
+                                     Label="Sản phẩm"
+                                     @bind-Value="selectedProduct"
+                                     ToStringFunc="@(p => p?.ProductName)"
+                                     SearchFunc="SearchProductsAutocomplete"
+                                     Required="true"
+                                     Class="mt-3" />
+
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="AddProductToList" Class="mt-4">
+                        Thêm vào danh sách
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="5">
+                <MudPaper Class="pa-4 mud-height-full">
+                    <MudText Typo="Typo.subtitle2">Danh sách sản phẩm đã chọn</MudText>
+                    @if (tempProducts.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2">Chưa có sản phẩm nào được thêm.</MudText>
+                    }
+                    else
+                    {
+                        <MudTable Items="@tempProducts">
+                            <HeaderContent>
+                                <MudTh>Tên sản phẩm</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.ProductName</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => RemoveProduct(context))" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Success" OnClick="SaveAllCollection" Disabled="@(tempProducts.Count == 0)">Lưu tất cả</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public int collectionId { get; set; }
+
+    private ProductViewModel selectedProduct;
+    private IEnumerable<ProductViewModel> productDTOs = new List<ProductViewModel>();
+    private List<ProductViewModel> tempProducts = new();
+    private List<CollectionDetailsViewModel> productDetails = new(); 
+    private List<CollectionViewModel> collectionDTOs = new(); 
+
+    private bool _loading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        productDTOs = await ProductService.GetAllProductsAsync();
+
+    }
+
+    private Task<IEnumerable<ProductViewModel>> SearchProductsAutocomplete(string value, CancellationToken token)
+    {
+        var alreadyAddedIds = tempProducts.Select(p => p.ProductId)
+            .Concat(productDetails.Select(d => d.ProductId))
+            .ToHashSet();
+
+        var filtered = productDTOs
+            .Where(p => !alreadyAddedIds.Contains(p.ProductId))
+            .Where(p => string.IsNullOrWhiteSpace(value) || p.ProductName.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(filtered);
+    }
+
+    private void AddProductToList()
+    {
+        if (selectedProduct == null)
+        {
+            Snackbar.Add("Vui lòng chọn sản phẩm", Severity.Warning);
+            return;
+        }
+
+        if (tempProducts.Any(p => p.ProductId == selectedProduct.ProductId))
+        {
+            Snackbar.Add("Sản phẩm đã có trong danh sách", Severity.Warning);
+            return;
+        }
+
+        tempProducts.Add(selectedProduct);
+        selectedProduct = null;
+    }
+
+    private void RemoveProduct(ProductViewModel product)
+    {
+        tempProducts.Remove(product);
+    }
+
+    private async Task SaveAllCollection()
+    {
+        bool hasError = false;
+
+        foreach (var product in tempProducts)
+        {
+            var detailDto = new CollectionDetailCreateDTO
+            {
+                CollectionId = collectionId,
+                ProductId = product.ProductId
+            };
+
+            var response = await CollectionService.AddCollectionDetail(detailDto);
+
+            if (response.IsSuccess)
+            {
+                Snackbar.Add($"✔ {product.ProductName} - {response.Message}", Severity.Success);
+            }
+            else
+            {
+                hasError = true;
+                Snackbar.Add($"✘ {product.ProductName} - {response.Message}", Severity.Error);
+            }
+        }
+
+        tempProducts.Clear();
+        StateHasChanged();
+
+        if (!hasError)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+
+    }
+}

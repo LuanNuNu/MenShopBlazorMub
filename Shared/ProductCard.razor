@@ -1,37 +1,62 @@
 ﻿@using MenShopBlazor.DTOs.Product.ViewModel
+@{
+    var productList = Products.ToList();
+    int[] pattern = new int[] { 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4 };
+    int patternLength = pattern.Length;
+}
 
 <MudGrid Class="@ContainerClass">
-    @if (Products != null && Products.Any())
+    @for (int i = 0; i < productList.Count; i++)
     {
-        @foreach (var item in Products)
-        {
-            <MudItem xs="12" sm="6" md="4" lg="3">
-                <MudCard Class="custom-card" @onclick="() => OnCardClick.InvokeAsync(item)">
-                    <MudCardMedia Image="@item.Thumbnail" Height="300" />
-                    <MudCardContent>
+        var item = productList[i];
+        var lgSize = pattern[i % patternLength]; 
+
+        <MudItem xs="6" sm="6" md="4" lg="@lgSize">
+            <MudCard Class="custom-card" @onclick="() => OnCardClick.InvokeAsync(item)">
+                <MudCardMedia Image="@item.Thumbnail" Height="300" />
+                <MudCardContent Style="height: 80px;">
+
+                    <MudText Typo="Typo.body1">
+                        @item.ProductName <span>@item.ProductDetailId</span>
+
+                    </MudText>
+                    <MudStack Row="true">
                         <MudText Typo="Typo.body1">
-                            @item.ProductName
-                            @if (!string.IsNullOrWhiteSpace(item.ColorName))
-                            {
-                                <span> - @item.ColorName</span>
-                            }
+                            <MudText style="@(item.DiscountPercent > 0 ? "text-decoration: line-through; color: gray;" : "")">
+                                @(item.Price.HasValue? item.Price.Value.ToString("N0") : "Liên hệ")
+                            </MudText>
                         </MudText>
 
-                        <MudText Typo="Typo.body2">
-                            Giá:
-                            <strong>
-                                @(item.Price.HasValue? item.Price.Value.ToString("N0") + " đ" : "Liên hệ")
-                            </strong>
+                        @if (item.DiscountPercent > 0)
+                        {
+                            <MudText Typo="Typo.body1" Class="ms-2">
+                                <strong>
+                                    @(item.SellPrice.HasValue? item.SellPrice.Value.ToString("N0") : "Liên hệ")
+                                </strong>
+                            </MudText>
+                        }
+                    </MudStack>
+
+                    @if (item.DiscountPercent > 0)
+                    {
+                        <MudText Typo="Typo.body2" Class="ms-2" Style="@($"color:{Colors.Red.Lighten1};")">- @item.DiscountPercent.Value.ToString("N0")%
                         </MudText>
-                    </MudCardContent>
-                    <MudCardActions>
-                        <MudIconButton Icon="@Icons.Material.Filled.FavoriteBorder" />
-                    </MudCardActions>
-                </MudCard>
-            </MudItem>
-        }
+                    }
+
+                </MudCardContent>
+                <MudCardActions>
+                    <MudToggleIconButton @bind-Toggled="@item.IsFavorite"
+                                         Icon="@Icons.Material.Filled.FavoriteBorder"
+                                         Color="@Color.Default"
+                                         ToggledIcon="@Icons.Material.Filled.Favorite"
+                                         ToggledColor="@Color.Error" />
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
     }
 </MudGrid>
+
+
 
 @if (ShowScrollToTop)
 {

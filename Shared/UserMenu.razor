@@ -1,9 +1,10 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @using MenShopBlazor.Services.Token
-@using MenShopBlazor.Services.Account
 @using MenShopBlazor.Services.Admin
 @using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.DTOs.Cart
 @using MenShopBlazor.Pages.User
+@using MenShopBlazor.Services.Account
 @using MenShopBlazor.Services.Auth
 @inject CustomAuthProvider AuthProvider
 @inject NavigationManager NavManager
@@ -11,27 +12,49 @@
 @inject IAdminService AdminService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject CartState CartState
 
-@if (_isAuthenticated)
+@if (_loadingUserData)
 {
-    <MudMenu OffsetY="true" Class="px-2">
+    <MudIconButton Icon="@Icons.Material.Filled.Person" Color="Color.Default" />
+
+}
+else if (IsAuthenticated && Role != "Customer")
+{
+    <MudMenu Class="px-2">
         <ActivatorContent>
             <MudStack Row="true" Class="cursor-pointer">
                 <MudAvatar Size="Size.Medium">
                     <MudImage Src="@(_avatarUrl ?? "imgs/Logo.png")" Alt="avatar" Style="width: 40px; height: 40px;" />
                 </MudAvatar>
-                <MudStack Justify="Justify.Center" Spacing="0">
-                    <MudText Typo="Typo.body1" Color="Color.Dark">Xin chào</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Dark" Class="fw-bold">@_userName</MudText>
-                </MudStack>
+
+                <MudHidden Breakpoint="Breakpoint.MdAndDown">
+                    <MudStack Justify="Justify.Center" Spacing="0">
+                        <MudText Typo="Typo.body1" Color="Color.Dark">Xin chào</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Dark" Class="fw-bold">@_userName</MudText>
+                    </MudStack>
+                </MudHidden>
             </MudStack>
         </ActivatorContent>
+
         <ChildContent>
-            <MudMenuItem OnClick="OpenProfileDialog" Icon="@Icons.Material.Filled.Person">Hồ sơ</MudMenuItem>
+            <MudMenuItem OnClick="@OpenProfilePage" Icon="@Icons.Material.Filled.Person">Hồ sơ</MudMenuItem>
             <MudMenuItem Icon="@Icons.Material.Filled.Settings">Cài đặt</MudMenuItem>
             <MudDivider />
             <MudMenuItem OnClick="Logout" Icon="@Icons.Material.Filled.Logout">Đăng xuất</MudMenuItem>
         </ChildContent>
+    </MudMenu>
+
+}
+else if (IsAuthenticated && Role == "Customer")
+{
+    <MudMenu Icon="@Icons.Material.Filled.Person"
+             Color="Color.Default"
+             AriaLabel="Open user menu">
+        <MudMenuItem Label="Thông tin tài khoản" OnClick="@OpenProfileInfoPage" />
+        <MudMenuItem Label="Lịch sử mua hàng" OnClick="@OpenProfileOrderPage" />
+        <MudDivider />
+        <MudMenuItem Label="Đăng xuất" OnClick="Logout" />
     </MudMenu>
 }
 else
@@ -47,36 +70,57 @@ else
 }
 
 @code {
-    private bool _isAuthenticated = false;
+    [Parameter]
+    public string Role { get; set; } = "";
+
+    private bool _loadingUserData = true;
     private string? _userName;
     private string? _avatarUrl;
+
+    [Parameter]
+    public bool IsAuthenticated { get; set; }
 
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {
+        _loadingUserData = true;
         if (AuthenticationStateTask == null)
         {
             Console.WriteLine("AuthenticationStateTask is NULL!!");
+            _loadingUserData = false;
             return;
         }
 
-        var authState = await AuthenticationStateTask;
-        var user = authState.User;
+        var loadTask = LoadUserDataAsync();
+        var delayTask = Task.Delay(1000);
 
-        if (user.Identity?.IsAuthenticated == true)
+        await Task.WhenAll(loadTask, delayTask);
+        _loadingUserData = false;
+
+        StateHasChanged();
+    }
+
+    private async Task LoadUserDataAsync()
+    {
+        try
         {
-            _isAuthenticated = true;
-            _userName = user.Identity.Name;
-            var userId = user.FindFirst("userId")?.Value;
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+            Role = await TokenService.GetRoleAsync();
 
-            if (!string.IsNullOrEmpty(userId))
+            if (user.Identity?.IsAuthenticated == true)
             {
-                var response = await AdminService.GetUsersAsync(userId: userId);
-                if (response?.Data != null)
+                IsAuthenticated = true;
+                _userName = user.Identity.Name;
+
+                var userId = user.FindFirst("userId")?.Value;
+
+                if (!string.IsNullOrEmpty(userId) && Role != "Customer")
                 {
-                    var profile = response.Data.FirstOrDefault();
+                    var response = await AdminService.GetUsersAsync(userId: userId);
+                    var profile = response?.Data?.FirstOrDefault();
                     if (profile != null)
                     {
                         _userName = profile.FullName;
@@ -84,75 +128,40 @@ else
                     }
                 }
             }
+            else
+            {
+                IsAuthenticated = false;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            _isAuthenticated = false;
+            Console.WriteLine("Lỗi khi load user: " + ex.Message);
+            IsAuthenticated = false;
         }
-        StateHasChanged();
-
     }
+
 
     private async Task Logout()
     {
         await TokenService.RemoveTokenAsync();
         AuthProvider.MarkUserAsLoggedOut();
+        CartState.SetItems(new List<CartDetailViewModel>());
+
+        StateHasChanged();
         await Task.Delay(400);
         NavManager.NavigateTo("/login");
     }
 
-    private async Task OpenProfileDialog()
+    private void OpenProfilePage()
     {
-        if (string.IsNullOrEmpty(_userName))
-        {
-            Snackbar.Add("Không xác định được người dùng.", Severity.Warning);
-            return;
-        }
-
-
-        var userId = await TokenService.GetUserIdAsync();
-        if (string.IsNullOrEmpty(userId))
-        {
-            Snackbar.Add("Không tìm thấy ID người dùng.", Severity.Warning);
-            return;
-        }
-
-        var response = await AdminService.GetUsersAsync(userId: userId);
-        if (response?.Data == null || !response.Data.Any())
-        {
-            Snackbar.Add("Không tìm thấy thông tin người dùng.", Severity.Warning);
-            return;
-        }
-
-        var profile = response.Data.First();
-
-        var parameters = new DialogParameters
-            {
-                ["CustomerData"] = new CustomerUpdateDTO
-                {
-                    FullName = profile.FullName,
-                    PhoneNumber = profile.UserPhone,
-                    BirthDate = profile.BirthDate,
-                    Gender = profile.Gender,
-                    Email = profile.UserEmail,
-                    Avatar = profile.Avatar
-                }
-            };
-
-        var options = new DialogOptions
-            {
-                CloseButton = true,
-                MaxWidth = MaxWidth.Medium,
-                FullWidth = true
-            };
-
-        var dialog = DialogService.Show<EditCustomerDialog>("THÔNG TIN CÁ NHÂN", parameters, options);
-        var result = await dialog.Result;
-
-        if (!result.Canceled)
-        {
-            await OnParametersSetAsync();
-        }
+        NavManager.NavigateTo("/profile");
     }
-
+    private void OpenProfileInfoPage()
+    {
+        NavManager.NavigateTo("/profile/info");
+    }
+    private void OpenProfileOrderPage()
+    {
+        NavManager.NavigateTo("/profile/orders");
+    }
 }

@@ -1,0 +1,209 @@
+﻿@using MenShopBlazor.Services.CustomerAddress
+@using MenShopBlazor.Services.Address
+@using MenShopBlazor.DTOs.AddressDTO
+@using MenShopBlazor.Services.Token
+@using static MenShopBlazor.DTOs.AddressDTO.AddressDTO;
+@inject IAddressService AddressService
+@inject ICustomerAddressService CustomerAddressService
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Customer, Admin ")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+<MudDialog MaxWidth="MaxWidth.Small" Style="overflow-y:hidden;">
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-2">Cập nhật địa chỉ</MudText>
+        <MudTextField @bind-Value="address.ReceiverName"
+                      Label="Tên người nhận"
+                      Required="true"
+                      RequiredError="Vui lòng nhập tên người nhận"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+        <MudTextField @bind-Value="address.ReceiverPhone"
+                      Label="Số điện thoại"
+                      Required="true"
+                      RequiredError="Vui lòng nhập số điện thoại"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+
+        <MudSelect T="int"
+                   Label="Tỉnh/Thành phố"
+                   Required="true"
+                   RequiredError="Vui lòng chọn Tỉnh/Thành phố"
+                   Margin="Margin.Dense"
+                   Variant="Variant.Outlined"
+                   Value="address.ProvinceId"
+                   ValueChanged="HandleProvinceChange">
+            @foreach (var p in Provinces)
+            {
+                <MudSelectItem Value="@p.Code">@p.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudSelect T="int"
+                   Label="Quận/Huyện"
+                   Required="true"
+                   RequiredError="Vui lòng chọn Quận/Huyện"
+                   Margin="Margin.Dense"
+                   Variant="Variant.Outlined"
+                   Value="address.DistrictId"
+                   ValueChanged="HandleDistrictChange"
+                   Disabled="Districts.Count == 0">
+            @foreach (var d in Districts)
+            {
+                <MudSelectItem Value="@d.Code">@d.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudSelect T="int"
+                   Label="Phường/Xã"
+                   Required="true"
+                   RequiredError="Vui lòng chọn Phường/Xã"
+                   Value="address.WardId"
+                   ValueChanged="HandleWardChange"
+                   Margin="Margin.Dense"
+                   Variant="Variant.Outlined"
+                   Disabled="Districts.Count == 0">
+            @foreach (var w in Wards)
+            {
+                <MudSelectItem Value="@w.Code">@w.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudTextField @bind-Value="address.Street"
+                      Label="Số nhà/Tên đường"
+                      Required="true"
+                      RequiredError="Vui lòng nhập Số nhà/Tên đường"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="UpdateAddressAsync">Lưu</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public CreateUpdateCustomerAddressDTO AddressToUpdate { get; set; }
+
+    private CreateUpdateCustomerAddressDTO address = new();
+    private List<ProvinceDTO> Provinces = new();
+    private List<DistrictDTO> Districts = new();
+    private List<WardDTO> Wards = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAddressDataAsync();
+    }
+    private async Task LoadAddressDataAsync()
+    {
+        Provinces = await AddressService.GetProvincesAsync();
+
+        address = new CreateUpdateCustomerAddressDTO
+        {
+            Id = AddressToUpdate.Id,
+            CustomerId = AddressToUpdate.CustomerId,
+            ReceiverName = AddressToUpdate.ReceiverName,
+            ReceiverPhone = AddressToUpdate.ReceiverPhone,
+            ProvinceId = AddressToUpdate.ProvinceId,
+            ProvinceName = AddressToUpdate.ProvinceName,
+            DistrictId = AddressToUpdate.DistrictId,
+            DistrictName = AddressToUpdate.DistrictName,
+            WardId = AddressToUpdate.WardId,
+            WardName = AddressToUpdate.WardName,
+            Street = AddressToUpdate.Street
+        };
+
+        if (address.ProvinceId > 0)
+        {
+            Districts = await AddressService.GetDistrictsByProvinceAsync(address.ProvinceId);
+        }
+
+        if (address.DistrictId > 0)
+        {
+            Wards = await AddressService.GetWardsByDistrictAsync(address.DistrictId);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task HandleProvinceChange(int selectedId)
+    {
+        var selected = Provinces.FirstOrDefault(p => p.Code == selectedId);
+        if (selected != null)
+        {
+            address.ProvinceId = selected.Code;
+            address.ProvinceName = selected.Name;
+
+            Districts = await AddressService.GetDistrictsByProvinceAsync(selected.Code);
+            Wards.Clear();
+
+            address.DistrictId = 0;
+            address.DistrictName = null;
+            address.WardId = 0;
+            address.WardName = null;
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleDistrictChange(int selectedId)
+    {
+        var selected = Districts.FirstOrDefault(d => d.Code == selectedId);
+        if (selected != null)
+        {
+            address.DistrictId = selected.Code;
+            address.DistrictName = selected.Name;
+
+            Wards = await AddressService.GetWardsByDistrictAsync(selected.Code);
+
+            address.WardId = 0;
+            address.WardName = null;
+
+            StateHasChanged();
+        }
+    }
+
+    private Task HandleWardChange(int selectedId)
+    {
+        var selected = Wards.FirstOrDefault(w => w.Code == selectedId);
+        if (selected != null)
+        {
+            address.WardId = selected.Code;
+            address.WardName = selected.Name;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task UpdateAddressAsync()
+    {
+        if (string.IsNullOrWhiteSpace(address.ReceiverName) ||
+            string.IsNullOrWhiteSpace(address.ReceiverPhone) ||
+            string.IsNullOrWhiteSpace(address.Street) ||
+            string.IsNullOrWhiteSpace(address.ProvinceName) ||
+            string.IsNullOrWhiteSpace(address.DistrictName) ||
+            string.IsNullOrWhiteSpace(address.WardName))
+        {
+            Snackbar.Add("Vui lòng điền đầy đủ thông tin!", Severity.Warning);
+            return;
+        }
+
+        var response = await CustomerAddressService.UpdateAsync(address.Id, address);
+
+        if (response.IsSuccess)
+        {
+            Snackbar.Add("Cập nhật địa chỉ thành công!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add(response.Message ?? "Cập nhật thất bại!", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

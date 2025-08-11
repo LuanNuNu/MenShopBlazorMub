@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using MenShopBlazor.DTOs.AddressDTO;
+using System.ComponentModel.DataAnnotations;
 
 namespace MenShopBlazor.DTOs.Branch
 {
@@ -10,7 +11,7 @@ namespace MenShopBlazor.DTOs.Branch
         public string? Name { get; set; }
         [Required(ErrorMessage = "Địa chỉ không được để trống.")]
         [StringLength(50, ErrorMessage = "Địa chỉ không được vượt quá 50 ký tự.")]
-        public string? Address { get; set; }
+        public AddressInfo? Address { get; set; }
         public bool IsOnline { get; set; }
     }
 }

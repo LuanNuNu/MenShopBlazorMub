@@ -6,6 +6,10 @@
 @inject IFabricService FabricService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
 
     <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" />

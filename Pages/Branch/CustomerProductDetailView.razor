@@ -8,14 +8,14 @@
 <MudContainer Class="mt-5 px-8">
     <MudBreadcrumbs Items="BreadcrumbItems" />
     <MudGrid>
-        <MudItem xs="12" md="6">
+        <MudItem xs="12" md="6" >
             @if (SelectedDetail?.Images?.Any() == true)
             {
-                <div class="swiper mySwiper2">
+                <div class="swiper mySwiper2 shadow-sm">
                     <div class="swiper-wrapper">
                         @foreach (var img in SelectedDetail.Images)
                         {
-                            <div class="swiper-slide p-2 rounded-3 shadow-sm bg-white">
+                            <div class="swiper-slide shadow-sm ">
                                 <img src="@img" alt="Ảnh" class="img-fluid rounded-2" />
                             </div>
                         }
@@ -42,10 +42,35 @@
         </MudItem>
 
         <MudItem xs="12" md="6">
-            <MudText Typo="Typo.h6">@SelectedDetail?.ProductName</MudText>
-            <MudText Typo="Typo.h6" Color="Color.Error">
-                <strong>@(SelectedDetail?.SellPrice?.ToString("N0") ?? "Liên hệ") đ</strong>
-            </MudText>
+            <MudText Typo="Typo.h5">@SelectedDetail?.ProductName</MudText>
+            <MudStack Row="true" Class="my-4 d-flex align-items-center" Spacing="1">
+                @if (SelectedDetail?.DiscountPercent > 0 && SelectedDetail?.SellPrice.HasValue == true)
+                {
+                    <MudText Typo="Typo.body1" Style="@($"color:{Colors.Gray.Lighten1};")" Class="text-decoration-line-through">
+                            @string.Format("{0:N0}", SelectedDetail.SellPrice.Value)
+                    </MudText>
+
+                    <MudText Typo="Typo.body1" Class="ms-2">
+                        <strong>
+                            @((SelectedDetail.SellPrice.Value * (1 - SelectedDetail.DiscountPercent.Value / 100)).ToString("N0"))
+                        </strong>
+                    </MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body1">
+                        <strong>
+                            @(SelectedDetail?.SellPrice.HasValue == true ? SelectedDetail.SellPrice.Value.ToString("N0") : "Liên hệ")
+                        </strong>
+                    </MudText>
+                }
+                @if (SelectedDetail?.DiscountPercent > 0)
+                {
+                    <MudText Typo="Typo.body2" Class="ms-2" Style="@($"color:{Colors.Red.Lighten1};")">
+                        - @SelectedDetail.DiscountPercent.Value.ToString("N0")%
+                    </MudText>
+                }
+            </MudStack>
 
             <MudSelect T="BranchProductDetailModel"
                        Value="SelectedDetail"
@@ -55,9 +80,29 @@
                        ValueChanged="OnVariantChanged">
                 @foreach (var d in ProductDetails.Where(x => x.ColorName == SelectedDetail?.ColorName))
                 {
-                    <MudSelectItem Value="d">
-                        @($"{d.ColorName}, {d.FabricName}, Size: {d.SizeName} - SL: {d.Quantity}")
-                    </MudSelectItem>
+                    @if(d.Quantity == 0)
+                    {
+                        <MudSelectItem Value="d">
+                            @($"{d.ColorName}, {d.FabricName}, Size: {d.SizeName} - ")
+                            <span Style="@($"color:{Colors.Red.Lighten1};")">Đã hết hàng!</span>
+                        </MudSelectItem>
+                    } else
+                    {
+                        @if (d.Quantity <= 10)
+                        {
+                            <MudSelectItem Value="d">
+                                @($"{d.ColorName}, {d.FabricName}, Size: {d.SizeName} - ")
+                                <span Style="@($"color:{Colors.Red.Lighten1};")">Chỉ còn @d.Quantity sản phẩm!</span>
+                            </MudSelectItem>
+
+                        }
+                        else
+                        {
+                            <MudSelectItem Value="d">
+                                @($"{d.ColorName}, {d.FabricName}, Size: {d.SizeName}")
+                            </MudSelectItem>
+                        }
+                    }
                 }
             </MudSelect>
 
@@ -68,7 +113,7 @@
                 <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="IncreaseQuantity" Disabled="SelectedDetail == null || Quantity >= SelectedDetail.Quantity" />
             </MudPaper>
 
-            <MudButton Class="mt-2"
+            <MudButton Class="my-2 "
                        StartIcon="@Icons.Material.Filled.AddShoppingCart"
                        Variant="Variant.Outlined" Color="Color.Tertiary"
                        OnClick="OnAddToCartClicked">
@@ -101,9 +146,10 @@
     [Parameter] public List<BranchProductDetailModel> ProductDetails { get; set; }
     [Parameter] public MarkupString ProductDescriptionHtml { get; set; }
     [Parameter] public List<ProductColorViewModel> RelatedProductColors { get; set; }
+    [Parameter] public EventCallback<(int Quantity, BranchProductDetailModel Detail)> AddToCart { get; set; }
 
     [Parameter] public EventCallback<ProductColorViewModel> NavigateToDetail { get; set; }
-    [Parameter] public EventCallback AddToCart { get; set; }
+    // [Parameter] public EventCallback AddToCart { get; set; }
     [Parameter]
     public string? ColorName { get; set; }
     private BranchProductDetailModel? SelectedDetail { get; set; }
@@ -156,9 +202,10 @@
 
     private async Task OnAddToCartClicked()
     {
-        if (AddToCart.HasDelegate)
-            await AddToCart.InvokeAsync();
+        if (AddToCart.HasDelegate && SelectedDetail != null)
+            await AddToCart.InvokeAsync((Quantity, SelectedDetail));
     }
+
 
     private async Task OnVariantChanged(BranchProductDetailModel? detail)
     {

@@ -1,12 +1,16 @@
 ﻿@using MenShopBlazor.DTOs.Account
 @using MenShopBlazor.Services.Account
+@using MenShopBlazor.DTOs.Cart
+@using MenShopBlazor.Services.Cart
 @inject IAccountService AccountService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavManager
 @using System.ComponentModel.DataAnnotations
 @using MenShopBlazor.Services.Token
 @inject ITokenService TokenService
-
+@inject ICartService CartService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 
 <MudForm Elevation="25" @ref="form" @bind-IsValid="isValid">
     <MudPaper Class="pa-4">
@@ -29,7 +33,7 @@
 
 
         <MudText Class="mt-4">
-            <MudLink Href="/forgot-password" Target="_blank" >
+            <MudLink OnClick="GoToForgotPasswordPage" Target="_blank">
                 Bạn quên mật khẩu?
             </MudLink>
         </MudText>
@@ -65,6 +69,8 @@
     private bool isShowPassword = false;
     private InputType PasswordInput = InputType.Password;
     private string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+    [Parameter]
+    public bool DisableNavigation { get; set; } = false;
 
     private void TogglePasswordVisibility()
     {
@@ -95,16 +101,49 @@
             {
                 Snackbar.Add("Đăng nhập thành công!", Severity.Success);
 
-                await Task.Delay(400); 
-
                 var role = await TokenService.GetRoleAsync();
-                if (role == "Customer")
-                    NavManager.NavigateTo("/branch-products");
-                else
-                    NavManager.NavigateTo("/list-category");
+                var customerId = await TokenService.GetUserIdAsync();
+
+                var anonymousId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "anonymousId");
+                if (!string.IsNullOrEmpty(anonymousId))
+                {
+                    // Merge cart
+                    await CartService.MergeCartAsync(new MergeCartRequestDTO
+                    {
+                        CustomerId = customerId,
+                        AnonymousId = anonymousId
+                    });
+
+
+                    await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "anonymousId");
+                }
+
+                await Task.Delay(400);
+
+                if (!DisableNavigation)
+                {
+                    if (role == "Customer")
+                    {
+                        NavManager.NavigateTo("/home");
+                    }
+                    else if (role == "Shipper")
+                    {
+                        NavManager.NavigateTo("/list-order");
+                    }
+                    else if (role == "BranchEmployee")
+                    {
+                        NavManager.NavigateTo("/san-pham");
+                    }
+                    else
+                    {
+                        NavManager.NavigateTo("/statistic-chart");
+                        
+                    }
+                }
+
+                if (OnSuccess.HasDelegate)
+                    await OnSuccess.InvokeAsync();
             }
-
-
             else
             {
                 Snackbar.Add(response.Message ?? "Đăng nhập thất bại", Severity.Error);
@@ -115,6 +154,7 @@
             Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
         }
     }
+
     private async Task ChangeToRegisterTab()
     {
         if (OnChangeTab.HasDelegate)
@@ -127,6 +167,9 @@
             await Submit();
         }
     }
-
+    private void GoToForgotPasswordPage()
+    {
+        Navigation.NavigateTo($"/forgot-password");
+    }
 
 }

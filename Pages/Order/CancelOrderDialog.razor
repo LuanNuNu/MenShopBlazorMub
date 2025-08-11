@@ -1,0 +1,48 @@
+﻿@inject IDialogService DialogService
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">Chọn lý do hủy đơn hàng</MudText>
+        <MudRadioGroup T="string"
+                       Value="@selectedReason"
+                       ValueChanged="@(v => selectedReason = v)">
+            @foreach (var reason in cancelReasons)
+            {
+                <MudRadio T="string" Value="@reason" Label="@reason" />
+            }
+        </MudRadioGroup>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@string.IsNullOrWhiteSpace(selectedReason)">Xác nhận</MudButton>
+        <MudButton OnClick="Cancel" Color="Color.Default">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    private string? selectedReason;
+    private List<string> cancelReasons = new()
+    {
+        "Thay đổi ý định mua hàng",
+        "Tìm được sản phẩm rẻ hơn",
+        "Thời gian giao hàng quá lâu",
+        "Thêm/sửa sản phẩm",
+        "Lý do khác"
+    };
+
+    private void Submit()
+    {
+        if (!string.IsNullOrWhiteSpace(selectedReason))
+            MudDialog.Close(DialogResult.Ok(selectedReason));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
+

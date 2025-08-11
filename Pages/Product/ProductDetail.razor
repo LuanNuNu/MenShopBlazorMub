@@ -1,25 +1,28 @@
 ﻿@page "/product-detail-admin/{productId:int}"
 
-
+@using MenShopBlazor.Pages.DiscountPrice
 @using MenShopBlazor.Services.Product
 @using MenShopBlazor.DTOs.Product.ViewModel
 @using MenShopBlazor.Shared;
-@using MenShopBlazor.Services.UploadImage;
+@using MenShopBlazor.Services.UploadImage
 @inject IProductService ProductService
 @inject IUpImg ImageService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-
+@attribute [Authorize(Roles = "Admin, RevenueManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
 
     <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
     </MudOverlay>
-    @if (!_loading)
-{
+
 <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
 <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
-    <MudGrid>
-        <MudItem xs="12">
+    <MudGrid>  
+        @if (!_loading)
+        {
+            <MudItem xs="12">
             <MudDataGrid T="ProductDetailViewModel"
                          Items="@productDetails"
                          Filterable="true"
@@ -80,7 +83,7 @@
 
                             <MudImage src="@imgSrc"
                                  @onclick="() => OpenImageModal(detailId)"
-                                 class="img-hover"
+                                 class="img-hover "
                                  style="width: 100px; height: 80px; object-fit: cover; cursor: pointer; border-radius: 4px;" />
                         </CellTemplate>
                     </TemplateColumn>
@@ -101,6 +104,12 @@
                                            OnClick="@(() => DeleteDetailProduct(context.Item.DetailId))">
                                     Xoá
                                 </MudButton>
+                                <MudButton StartIcon="@Icons.Material.Filled.Discount"
+                                            Size="Size.Small"
+                                            Color="Color.Info"
+                                               OnClick="@(() => OpenAddDiscountPriceDialog(context.Item.DetailId))">
+                                    Thêm Giảm Giá
+                                </MudButton>
                             </MudStack>
                         </CellTemplate>
                     </TemplateColumn>
@@ -118,9 +127,10 @@
                 Thêm chi tiết
             </MudButton>
         </MudItem>
+        }
     </MudGrid>
 </MudContainer>
-}
+
 
 @code {
     private List<BreadcrumbItem> _items = new();
@@ -230,6 +240,19 @@
         var parameters = new DialogParameters { { "ProductId", productId } };
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dialog = DialogService.Show<CreateProductDetailDialog>("TẠO CHI TIẾT SẢN PHẨM", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadProductDetailsAsync();
+        }
+    }
+
+    private async Task OpenAddDiscountPriceDialog(int detailId)
+    {
+        var parameters = new DialogParameters { { "detailId", detailId } };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<CreateDiscountPriceDetail>("THÊM GIẢM GIÁ", parameters, options);
         var result = await dialog.Result;
 
         if (!result.Canceled)

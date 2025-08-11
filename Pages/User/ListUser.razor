@@ -9,8 +9,11 @@
 @inject NavigationManager Navigation
 @inject ITokenService TokenService
 @inject IDialogService DialogService
+@inject IBranchService BrachService
 @inject ISnackbar Snackbar
 @attribute [Authorize]
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.Services.Branch
 @using Microsoft.AspNetCore.Authorization;
 @using Microsoft.AspNetCore.Components.Authorization;
 
@@ -84,7 +87,7 @@
                             <PropertyColumn Property="x => x.FullName" Title="Họ và tên" />
                             <PropertyColumn Property="x => x.UserEmail" Title="Email" />
                             <PropertyColumn Property="x => x.UserPhone" Title="SĐT" />
-                            <PropertyColumn Property="x => x.BranchId" Title="Chi nhánh" />
+                            <PropertyColumn Property="x => x.BranchName" Title="Chi nhánh" />
                             <PropertyColumn Property="x => x.UserRole" Title="Vai trò" />
                             <PropertyColumn Property="x => x.Gender" Title="Giới tính">
                                 <CellTemplate Context="context">
@@ -119,29 +122,96 @@
                 Thêm nhân viên
             </MudButton>
         </MudTabPanel>
+
+            <MudTabPanel Text="Shipper">
+                @if (_shippers is not null)
+                {
+                    <MudDataGrid T="UserViewModel"
+                                 Items="@_shippers"
+                                 RowsPerPage="10"
+                                 Dense="true"
+                                 Filterable="true"
+                                 FilterMode="DataGridFilterMode.ColumnFilterRow">
+                        <Columns>
+                            <PropertyColumn Property="x => x.FullName" Title="Họ và tên" />
+                            <PropertyColumn Property="x => x.UserEmail" Title="Email" />
+                            <PropertyColumn Property="x => x.UserPhone" Title="SĐT" />
+                            <PropertyColumn Property="x => x.WorkArea.FullAddress" Title="KHU VỰC HOẠT ĐỘNG" />
+                            <PropertyColumn Property="x => x.BranchName" Title="Chi nhánh" />
+                            <PropertyColumn Property="x => x.Gender" Title="Giới tính">
+                                <CellTemplate Context="context">
+                                    @(
+                                                                context.Item.Gender.HasValue
+                                                                ? (context.Item.Gender.Value ? "Nam" : "Nữ")
+                                                                : "Chưa rõ"
+                                                                )
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <TemplateColumn Title="Tùy chỉnh">
+                            <CellTemplate Context="context">
+                                <MudButton StartIcon="@Icons.Material.Outlined.Edit"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           OnClick="@(() => OpenEditEmployeeDialog(context.Item))">
+                                    Sửa
+                                </MudButton>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                    <PagerContent>
+                        <MudDataGridPager T="UserViewModel" />
+                    </PagerContent>
+                </MudDataGrid>
+                        }
+
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.PersonAdd"
+                           Class="mt-3"
+                           OnClick="OpenCreateShipperDialog">
+                    Thêm Shipper
+                </MudButton>
+            </MudTabPanel>
+
     </MudTabs>
 </MudContainer>
 }
+
 @code {
-    private IEnumerable<UserViewModel> _customers;
-    private IEnumerable<UserViewModel> _employees;
+    private IEnumerable<UserViewModel>? _customers ;
+    private IEnumerable<UserViewModel>? _employees;
+    private IEnumerable<UserViewModel>? _shippers;
     private int _activeTab = 0;
     private List<BreadcrumbItem> _items = new();
-    private bool _loading = false; 
+    private bool _loading = false;
+    private string branchName;
+    private string userRole;
+
+    private List<BranchViewModel> _branches;
+
     protected override async Task OnInitializedAsync()
     {
         _loading = true;
         StateHasChanged();
-
+        await LoadBranchesAsync();
         await Task.WhenAll(
             LoadCustomersAsync(),
-            LoadEmployeesAsync()
+            LoadEmployeesAsync(),
+             LoadShippersAsync()
         );
 
         _loading = false;
         StateHasChanged();
     }
 
+    private async Task LoadBranchesAsync()
+    {
+        var response = await BrachService.GetAllBranchesAsync();
+        if (response.IsSuccess)
+        {
+            _branches = response.Data;
+        }
+    }
     private async Task LoadCustomersAsync()
     {
         var loadTask = AdminService.GetUsersAsync();
@@ -153,6 +223,7 @@
         if (response.IsSuccess)
         {
             _customers = response.Data?.Where(x => x.UserRole == "Customer").ToList();
+
         }
         else
         {
@@ -162,7 +233,7 @@
 
     private async Task LoadEmployeesAsync()
     {
-        var userRole = await TokenService.GetRoleAsync();
+        userRole = await TokenService.GetRoleAsync();
 
         var loadTask = AdminService.GetUsersAsync();
         var delayTask = Task.Delay(500);
@@ -177,17 +248,87 @@
                 var currentUser = await AdminService.GetCurrentUserAsync();
                 var branchId = currentUser.Data?.BranchId;
 
-                _employees = response.Data?.Where(x => x.UserRole != "Customer" && x.BranchId == branchId).ToList();
-            }else
-            {
-                _employees = response.Data?.Where(x => x.UserRole != "Customer").ToList();
+                branchName = await GetBranchNameByIdAsync(branchId);
 
+                _employees = response.Data?
+                    .Where(x => x.UserRole != "Customer" && x.UserRole != "Shipper" && x.BranchId == branchId)
+                    .Select(x =>
+                    {
+                        x.BranchName = branchName;
+                        return x;
+                    });
+            }
+            else
+            {
+                _employees = response.Data?
+                                .Where(x => x.UserRole != "Customer" && x.UserRole != "Shipper")
+                                .Select(x =>
+                                {
+                                    x.BranchName = _branches.FirstOrDefault(b => b.BranchId == x.BranchId)?.Name;
+                                    return x;
+                                })
+                                .ToList();
             }
         }
         else
         {
             Snackbar.Add(response.Message, Severity.Error);
         }
+    }
+
+    private async Task LoadShippersAsync()
+    {
+        userRole = await TokenService.GetRoleAsync();
+
+        var loadTask = AdminService.GetUsersAsync();
+        var delayTask = Task.Delay(500);
+        await Task.WhenAll(loadTask, delayTask);
+
+        var response = loadTask.Result;
+
+        if (response.IsSuccess)
+        {
+            if (userRole == "BranchManager")
+            {
+                var currentUser = await AdminService.GetCurrentUserAsync();
+                var branchId = currentUser.Data?.BranchId;
+
+                branchName = await GetBranchNameByIdAsync(branchId);
+
+                _shippers = response.Data?
+                    .Where(x => x.UserRole == "Shipper" && x.BranchId == branchId)
+                    .Select(x =>
+                    {
+                        x.BranchName = branchName;
+                        return x;
+                    })
+                    .ToList();
+            }
+            else
+            {
+                _shippers = response.Data?
+                    .Where(x => x.UserRole == "Shipper")
+                    .Select(x =>
+                    {
+                        x.BranchName = _branches.FirstOrDefault(b => b.BranchId == x.BranchId)?.Name;
+                        return x;
+                    })
+                    .ToList();
+            }
+        }
+        else
+        {
+            Snackbar.Add(response.Message, Severity.Error);
+        }
+    }
+
+
+    private async Task<string?> GetBranchNameByIdAsync(int? branchId)
+    {
+        if (branchId == null) return null;
+
+        var branchResponse = await BrachService.GetBranchByIdAsync(branchId.Value);
+        return branchResponse.IsSuccess ? branchResponse.Data?.Name : null;
     }
 
     private async Task OpenEditCustomerDialog(UserViewModel user)
@@ -202,6 +343,7 @@
                     BirthDate = user.BirthDate,
                     Gender = user.Gender,
                     Email = user.UserEmail,
+                    
                     Avatar = user.Avatar
                 }
             };
@@ -225,6 +367,7 @@
         var parameters = new DialogParameters
             {
                 ["UserId"] = user.UserId,
+                ["Role"] = userRole,
                 ["EmployeeData"] = new EmployeeUpdateDTO
                 {
                     FullName = user.FullName,
@@ -233,8 +376,8 @@
                     Gender = user.Gender,
                     Email = user.UserEmail,
                     Avatar = user.Avatar,
-                    BranchId = user.BranchId,
-                    EmployeeAddress = user.WorkedBranch
+                    BranchId = user.BranchId ?? 0,               
+                    WorkArea = user.WorkArea 
                 }
             };
 
@@ -283,6 +426,30 @@
             StateHasChanged();
         }
     }
+
+
+    private async Task OpenCreateShipperDialog()
+    {
+        var parameters = new DialogParameters
+    {
+        { "Role", "Shipper" }
+    };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<CreateUserDialog>("TẠO SHIPPER", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            _loading = true;
+            StateHasChanged();
+            await LoadShippersAsync(); 
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+
 }
 
 

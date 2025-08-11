@@ -12,7 +12,6 @@ namespace MenShopBlazor.DTOs.Payment
         public string? TransactionCode { get; set; }
         public string? PaymentProvider { get; set; }
         public string? Notes { get; set; }
-
-        public ICollection<CreatePaymentDiscountDTO>? Discounts { get; set; }
+        public List<CreatePaymentDiscountDTO> Discounts { get; set; } = new();
     }
 }

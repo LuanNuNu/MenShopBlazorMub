@@ -7,6 +7,9 @@
 @inject IProductService ProductService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
 
 <MudDialog>
     <TitleContent>

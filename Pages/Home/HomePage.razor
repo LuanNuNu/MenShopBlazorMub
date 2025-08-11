@@ -1,0 +1,342 @@
+﻿@page "/"
+@page "/home"
+
+@using MenShopBlazor.DTOs.Collection.ViewModel
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.Services.Collection
+@using MenShopBlazor.DTOs.Statistic
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.Services.Statistic
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Shared;
+@using MenShopBlazor.Services.Branch
+@inject IBranchService BranchService
+@inject ICollectionService CollectionService
+@inject IStatisticService StatisticService
+@inject ITokenService TokenService
+@inject IJSRuntime JSRuntime
+@inject BranchHelper BranchHelper
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+
+    <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    </MudOverlay>
+
+    @if (!_loading)
+    {
+        <MudContainer Class="mt-5 px-8">
+            <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+            <MudCarousel Class="mud-width-full" Style="aspect-ratio: 16 / 9;"
+            ShowArrows="@arrows"
+            ShowBullets="@bullets"
+            EnableSwipeGesture="@enableSwipeGesture"
+            AutoCycle="@autocycle"
+            TData="ImageCollectionViewModel">
+
+                @if (collectionImgs != null && collectionImgs.Any())
+                {
+                    @foreach (var img in collectionImgs)
+                    {
+                        <MudCarouselItem Transition="transition">
+                            <div class="d-flex justify-content-center align-items-center" style="height:100%">
+                                <img src="@img.FullPath" alt="Hình bộ sưu tập" style="max-height:100%; max-width:100%; object-fit:cover;" />
+                            </div>
+                        </MudCarouselItem>
+                    }
+
+                }
+            </MudCarousel>
+
+            <MudGrid>
+            <MudItem xs="12">
+            </MudItem>
+                <MudItem xs="12" @onclick="GoToProduct" style="cursor: pointer;">
+                    <div class="d-flex justify-content-center align-items-center" style="height:100%">
+                        <img src="/imgs/banerShip.jpg" alt="Hình bộ sưu tập"
+                             style="max-height:100%; max-width:100%; object-fit:cover;" />
+                    </div>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.h6" Class="mb-4">Sản phẩm bán chạy</MudText>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudGrid>
+                        @foreach (var item in _topProductDetails)
+                        {
+                            var firstImage = item.Images?.FirstOrDefault();
+                            var hasDiscount = item.DiscountPercent > 0;
+                            var priceText = item.SellPrice.HasValue ? $"{item.SellPrice.Value:N0}" : "Liên hệ";
+
+                            <MudItem xs="6" sm="6" md="3">
+                                <MudCard Class="custom-card" @onclick="() => NavigateToDetail(item)">
+                                    <MudCardMedia Image="@firstImage" Height="300" />
+
+                                    <MudCardContent Style="height: 80px;">
+                                        <MudText Typo="Typo.body1">
+                                            @item.ProductName <span>@item.DetailId</span>
+                                        </MudText>
+
+                                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                                            <MudText Typo="Typo.body1"
+                                                     Style="@(hasDiscount ? "text-decoration: line-through; color: gray;" : "")">
+                                                @priceText
+                                            </MudText>
+
+                                            @if (hasDiscount)
+                                            {
+                                                <MudText Typo="Typo.body1" Class="ms-2">
+                                                    <strong>@priceText</strong>
+                                                </MudText>
+                                            }
+                                        </MudStack>
+
+                                        @if (hasDiscount)
+                                        {
+                                            <MudText Typo="Typo.body2" Class="ms-2" Style="@($"color:{Colors.Red.Lighten1};")">
+                                                - @item.DiscountPercent.Value.ToString("N0")%
+                                            </MudText>
+                                        }
+                                    </MudCardContent>
+
+                                    <MudCardActions>
+                                        <MudToggleIconButton @bind-Toggled="@item.IsFavorite"
+                                                             Icon="@Icons.Material.Filled.FavoriteBorder"
+                                                             Color="@Color.Default"
+                                                             ToggledIcon="@Icons.Material.Filled.Favorite"
+                                                             ToggledColor="@Color.Error" />
+                                    </MudCardActions>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+
+                </MudItem>
+            </MudGrid>
+
+
+    </MudContainer>
+        <MudScrollToTop>
+            <MudFab Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.ArrowUpward" />
+        </MudScrollToTop>
+    }
+
+    @code {
+    private bool _isLoggedIn = false;
+    private bool arrows = true;
+    private bool bullets = true;
+    private bool enableSwipeGesture = true;
+    private bool autocycle = true;
+    private string? role;
+    private Transition transition = Transition.Slide;
+    private List<BreadcrumbItem> _items = new();
+    private bool _loading = false;
+    public int? BranchId { get; set; }
+    private List<CollectionViewModel> collections = new();
+    private List<ImageCollectionViewModel> collectionImgs = new();
+    private CollectionViewModel collection = new();
+    private List<TopBestSellingProductDto> _topProductsByDay = new();
+    private DateTime? _selectedDateForDay = DateTime.Today;
+    private List<BranchProductDetailModel> _topProductDetails = new();
+    private List<BranchProductDetailModel> _collectionProductDetails = [];
+    private List<CollectionDetailsViewModel> listCollectionDetail    = new();
+    private bool _swiperInitialized = false;
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        role = await TokenService.GetRoleAsync();
+
+        if (!_isLoggedIn)
+        {
+            var existingId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "anonymousId");
+            if (string.IsNullOrEmpty(existingId))
+            {
+                var newId = Guid.NewGuid().ToString();
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "anonymousId", newId);
+                Console.WriteLine("id nặc danh: " + newId);
+            }
+        }
+
+        _items = new()
+    {
+        new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+        new BreadcrumbItem("Bộ sưu tập mới", href: "/", icon: Icons.Material.Filled.List),
+    };
+
+        await EnsureBranchIdAsync();
+
+        _loading = true;
+        StateHasChanged();
+        var collectionTask = LoadCollections();
+        var topProductsTask = LoadTopProducts();
+        var collectionProductsTask = LoadCollectionProductsFromList();
+        var delayTask = Task.Delay(1000); 
+
+        await Task.WhenAll(collectionTask, topProductsTask, collectionProductsTask, delayTask);
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadCollections()
+    {
+     try
+        {
+            var delayTask = Task.Delay(1000);
+            var collectionResult = await CollectionService.GetCurrentCollection();
+
+            if (collectionResult?.Data == null)
+            {
+                collection = new CollectionViewModel();
+                collectionImgs = new List<ImageCollectionViewModel>();
+                listCollectionDetail = new List<CollectionDetailsViewModel>();
+                return;
+            }
+
+            collection = collectionResult.Data;
+            var loadCollectionImgTask = CollectionService.GetImageCollectonAsync(collection.CollectionId);
+            var loadDetailsTask = CollectionService.GetCollectionDetails(collection.CollectionId);
+
+            await Task.WhenAll(loadCollectionImgTask, loadDetailsTask, delayTask);
+
+            collectionImgs = (await loadCollectionImgTask).ToList();
+            listCollectionDetail = (await loadDetailsTask)?.Data ?? new List<CollectionDetailsViewModel>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"LoadCollections error: {ex.Message}");
+        }
+    }
+
+    private async Task EnsureBranchIdAsync()
+    {
+        if (BranchId != null && BranchId > 0)
+            return;
+
+        BranchId = await BranchHelper.GetBranchIdAsync(role);
+    }
+    private async Task LoadTopProducts()
+    {
+
+        try
+        {
+            if (!_selectedDateForDay.HasValue) return;
+            await EnsureBranchIdAsync();
+
+            _topProductsByDay = await StatisticService.GetTopBestSellingProductsByDayAsync(_selectedDateForDay.Value, 5, BranchId) ?? new();
+
+            if (!_topProductsByDay.Any())
+            {
+                _topProductDetails = new List<BranchProductDetailModel>();
+                return;
+            }
+
+            var detailTasks = _topProductsByDay.Select(async p =>
+            {
+                try
+                {
+                    var resp = await BranchService.GetBranchProductDetailbyProductId(BranchId ?? 0, p.ProductId);
+                    var list = resp?.IsSuccess == true ? resp.Data ?? new List<BranchProductDetailModel>() : new List<BranchProductDetailModel>();
+
+                    var selected = list.FirstOrDefault(d => d.DetailId == p.ProductDetailId)
+                                  ?? list.FirstOrDefault();
+
+                    if (selected != null)
+                        selected.ProductId = p.ProductId;
+
+                    return selected;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"LoadTopProducts item error: {ex.Message}");
+                    return null;
+                }
+            });
+
+            var results = await Task.WhenAll(detailTasks);
+            _topProductDetails = results.Where(x => x != null).ToList()!;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"LoadTopProducts error: {ex.Message}");
+        }
+    }
+
+    private async Task LoadCollectionProductsFromList()
+    {
+        try
+        {
+            await EnsureBranchIdAsync();
+
+            var detailTasks = listCollectionDetail.Take(10).Select(async cd =>
+            {
+                var detailResponse = await BranchService.GetBranchProductDetailbyProductId(BranchId ?? 0, cd.ProductId);
+                return detailResponse?.IsSuccess == true
+                    ? detailResponse.Data ?? new List<BranchProductDetailModel>()
+                    : new List<BranchProductDetailModel>();
+            });
+
+            var detailsList = await Task.WhenAll(detailTasks);
+            _collectionProductDetails = detailsList.SelectMany(d => d).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"LoadCollectionProductsFromList error: {ex.Message}");
+        }
+    }
+
+
+
+
+    private void  GoToProduct()
+    {
+        NavManager.NavigateTo("/san-pham");
+    }
+
+    private void NavigateToDetail(object item)
+    {
+        switch (item)
+        {
+            case BranchProductModel model:
+                var url1 = UrlHelper.GenerateProductDetailUrl(
+                    model.ProductId,
+                    model.ProductName ?? "",
+                    model.CategoryProductID,
+                    BranchId,
+                    null
+                );
+                NavManager.NavigateTo(url1);
+                break;
+            case BranchProductDetailModel detail:
+                var url = UrlHelper.GenerateProductDetailUrl(
+                    detail.ProductId ?? 0,
+                    detail.ProductName ?? "",
+                    null,
+                    BranchId,
+                    detail.ColorName,
+                    detail.DetailId 
+                );
+                NavManager.NavigateTo(url);
+                break;
+
+
+            case ProductColorViewModel color:
+                var url2 = UrlHelper.GenerateProductDetailUrl(
+                    color.ProductId,
+                    color.ProductName ?? "",
+                    color.CategoryProductID,
+                    BranchId,
+                    color.ColorName
+                );
+                NavManager.NavigateTo(url2);
+                break;
+
+            default:
+                Snackbar.Add("Không xác định được loại dữ liệu sản phẩm.", Severity.Warning);
+                break;
+        }
+    }
+}

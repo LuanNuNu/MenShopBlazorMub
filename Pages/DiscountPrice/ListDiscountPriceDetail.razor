@@ -1,0 +1,121 @@
+﻿@page "/discount-price-detail/{id:int}"
+
+@using MenShopBlazor.DTOs.DiscountPrice
+@using MenShopBlazor.Services.DiscountPrice
+@using MenShopBlazor.Shared
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IDiscountPriceService DiscountPriceService
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+    <MudGrid>
+        <MudItem xs="12">
+            @if (!_loading)
+            {
+                <MudDataGrid T="DiscountPriceDetailViewModel"
+                             Items="@discountPriceViewModels"
+                             RowsPerPage="7"
+                             Dense="true"
+                             Filterable="true"
+                             FilterMode="DataGridFilterMode.ColumnFilterRow">
+                    <Columns>
+                        <PropertyColumn Property="x => x.Id" Filterable=false Title="MÃ CHI TIẾT" />
+                        <PropertyColumn Property="x => x.discountPriceId" Filterable=false Title ="MÃ GIẢM GIÁ" />
+                        <PropertyColumn Property="x => x.productDetailId" Filterable=false Title="MÃ CHI TIẾT SẢN PHẨM" />
+                        <PropertyColumn Property="x => x.ProductName" Title="TÊN SẢN PHẨM" />
+                        <PropertyColumn Property="x => x.ColorName" Title="MÀU" />
+                        <PropertyColumn Property="x => x.SizeName" Title="KÍCH CỞ" />
+                        <PropertyColumn Property="x => x.FabricName" Title="CHẤT LIỆU" />
+                        <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                            <CellTemplate>
+                                <MudStack Row>
+                                    <MudButton StartIcon="@Icons.Material.Outlined.Delete"
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               Class="ml-2"
+                                               OnClick="@(() => DeleteDiscountAsync(context.Item.Id))">
+                                        Xoá
+                                    </MudButton>
+                                </MudStack>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+
+                    <PagerContent>
+                        <MudDataGridPager T="DiscountPriceDetailViewModel" />
+                    </PagerContent>
+                </MudDataGrid>
+
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+@code {
+    [Parameter] public int id { get; set; }
+    private List<DiscountPriceDetailViewModel> discountPriceViewModels = new();
+    private List<BreadcrumbItem> _items = new();
+    private bool _loading = false;
+    protected override async Task OnInitializedAsync()
+    {
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Giảm giá", href: "/list-discount-price", icon: Icons.Material.Filled.List),
+            new BreadcrumbItem("Chi tiết giảm giá", href: null, disabled: true, icon: Icons.Material.Filled.List),
+
+        };
+        await loadpage();
+    }
+    private async Task loadpage()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = DiscountPriceService.GetAllProductDetailDiscountPrice(id);
+
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
+
+        discountPriceViewModels  = loadTask.Result;
+        _loading = false;
+        StateHasChanged();
+    }
+    private async Task DeleteDiscountAsync(int id)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá chương trình giảm giá có ID = {id} không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await DiscountPriceService.DeleteDiscountPriceDetailAsync(id);
+
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Xóa chương trình thành công", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+
+            await loadpage();
+        }
+    }
+
+}

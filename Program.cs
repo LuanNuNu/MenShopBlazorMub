@@ -1,27 +1,40 @@
-using MenShopBlazor.Services;
+﻿using Blazored.SessionStorage;
 using MenShopBlazor;
+using MenShopBlazor.Services;
+using MenShopBlazor.Services.Account;
+using MenShopBlazor.Services.Address;
+using MenShopBlazor.Services.Admin;
+using MenShopBlazor.Services.Auth;
+using MenShopBlazor.Services.Branch;
+using MenShopBlazor.Services.Cart;
 using MenShopBlazor.Services.Category;
-using MenShopBlazor .Services.Product;
+using MenShopBlazor.Services.Collection;
+using MenShopBlazor.Services.CollectionService;
+using MenShopBlazor.Services.Color;
+using MenShopBlazor.Services.CustomerAddress;
+using MenShopBlazor.Services.DiscountPrice;
+using MenShopBlazor.Services.Fabric;
+using MenShopBlazor.Services.InputReceiptService;
+using MenShopBlazor.Services.Order;
+using MenShopBlazor.Services.OutputReceiptService;
+using MenShopBlazor.Services.Payment;
+using MenShopBlazor.Services.Product;
+using MenShopBlazor.Services.Size;
+using MenShopBlazor.Services.Statistic;
+using MenShopBlazor.Services.Storage;
+using MenShopBlazor.Services.Token;
 using MenShopBlazor.Services.UploadImage;
+using MenShopBlazor.Shared;
+using MenShopUI.Services.Color;
+using MenShopUI.Services.Fabric;
+using MenShopUI.Services.Size;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using MudBlazor.Services;
-using MenShopBlazor.Services.Order;
-using MenShopBlazor.Services.Payment;
-using MenShopBlazor.Services.Fabric;
-using MenShopUI.Services.Fabric;
-using MenShopBlazor.Services.Color;
-using MenShopUI.Services.Color;
-using MenShopBlazor.Services.Size;
-using MenShopUI.Services.Size;
-using MenShopBlazor.Services.Account;
-using MenShopBlazor.Services.Auth;
-using Blazored.SessionStorage;
 using Microsoft.Extensions.DependencyInjection;
-using MenShopBlazor.Services.Token;
-using MenShopBlazor.Services.Admin;
-using Microsoft.AspNetCore.Components.Authorization;
-using MenShopBlazor.Services.Branch;
+using Microsoft.JSInterop;
+using MudBlazor.Services;
+using System.Globalization;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -45,10 +58,23 @@ builder.Services.AddScoped<AuthorizationMessageHandler>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBranchService, BranchService>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<ICustomerAddressService, CustomerAddressService>();
+builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IOutputReceiptService, OutputReceiptService>();
+builder.Services.AddScoped<IInputReceiptService, InputReceiptService>();
+builder.Services.AddScoped<ICollectionService, CollectionService>();
+builder.Services.AddScoped<IDiscountPriceService, DiscountPriceService>();
+builder.Services.AddScoped<IStorageService, StorageService>();
+builder.Services.AddScoped<IStatisticService, StatisticService>();
+builder.Services.AddScoped<BranchHelper>();
+builder.Services.AddSingleton<CartState>();
+builder.Services.AddScoped<IForgotPasswordService, ForgotPasswordService>();
+
 
 builder.Services.AddHttpClient("AuthorizedClient", client =>
 {
-    client.BaseAddress = new Uri("https://localhost:7094/api/");
+    client.BaseAddress = new Uri("https://localhost:7094/");
 })
 .AddHttpMessageHandler<AuthorizationMessageHandler>();
 

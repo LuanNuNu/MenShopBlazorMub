@@ -1,0 +1,159 @@
+﻿@using static MenShopBlazor.DTOs.AddressDTO.AddressDTO;
+@using MenShopBlazor.DTOs.AddressDTO
+@using MenShopBlazor.Services.Address
+@inject IAddressService AddressService
+
+<MudSelect T="int"
+           Label="Tỉnh/Thành phố"
+           Required="true"
+           RequiredError="Vui lòng chọn Tỉnh/Thành phố"
+           Margin="Margin.Dense"
+           Variant="Variant.Outlined"
+           Value="SelectedProvinceId ?? 0"
+           ValueChanged="OnProvinceChanged">
+    @foreach (var p in Provinces)
+    {
+        <MudSelectItem Value="@p.Code">@p.Name</MudSelectItem>
+    }
+</MudSelect>
+<MudSelect T="int"
+           Label="Quận/Huyện"
+           Margin="Margin.Dense"
+           Variant="Variant.Outlined"
+           Value="SelectedDistrictId ?? 0"
+           ValueChanged="OnDistrictChanged"
+           Required="true"
+           Disabled="Districts.Count == 0">
+    @foreach (var d in Districts)
+    {
+        <MudSelectItem Value="@d.Code">@d.Name</MudSelectItem>
+    }
+</MudSelect>
+
+<MudSelect T="int"
+           Label="Phường/Xã"
+           Margin="Margin.Dense"
+           Variant="Variant.Outlined"
+           Value="SelectedWardId ?? 0"
+           ValueChanged="OnWardChanged"
+           Required="true"
+           Disabled="Districts.Count == 0">
+    @foreach (var w in Wards)
+    {
+        <MudSelectItem Value="@w.Code">@w.Name</MudSelectItem>
+    }
+</MudSelect>
+
+
+@code {
+    [Parameter] public AddressInfo Value { get; set; }
+    [Parameter] public EventCallback<AddressInfo> ValueChanged { get; set; }
+
+    private List<ProvinceDTO> Provinces = new();
+    private List<DistrictDTO> Districts = new();
+    private List<WardDTO> Wards = new();
+
+    private int? SelectedProvinceId { get; set; }
+    private int? SelectedDistrictId { get; set; }
+    private int? SelectedWardId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Provinces = await AddressService.GetProvincesAsync();
+
+        if (Value?.ProvinceId != null)
+        {
+            Districts = await AddressService.GetDistrictsByProvinceAsync(Value.ProvinceId.Value);
+            var province = Provinces.FirstOrDefault(p => p.Code == Value.ProvinceId);
+            if (province != null)
+            {
+                Value.ProvinceName = province.Name;
+            }
+        }
+
+        if (Value?.DistrictId != null)
+        {
+            Wards = await AddressService.GetWardsByDistrictAsync(Value.DistrictId.Value);
+            var district = Districts.FirstOrDefault(d => d.Code == Value.DistrictId);
+            if (district != null)
+            {
+                Value.DistrictName = district.Name;
+            }
+        }
+
+        if (Value?.WardId != null)
+        {
+            var ward = Wards.FirstOrDefault(w => w.Code == Value.WardId);
+            if (ward != null)
+            {
+                Value.WardName = ward.Name;
+            }
+        }
+
+        SelectedProvinceId = Value?.ProvinceId;
+        SelectedDistrictId = Value?.DistrictId;
+        SelectedWardId = Value?.WardId;
+    }
+
+    private async Task OnProvinceChanged(int selectedId)
+    {
+        SelectedProvinceId = selectedId;
+
+        var selected = Provinces.FirstOrDefault(p => p.Code == selectedId);
+        if (selected == null) return;
+
+        Value ??= new AddressInfo();
+        Value.ProvinceId = selected.Code;
+        Value.ProvinceName = selected.Name;
+
+        // Reset cấp dưới
+        Value.DistrictId = 0;
+        Value.DistrictName = null;
+        Value.WardId = 0;
+        Value.WardName = null;
+
+        SelectedDistrictId = null;
+        SelectedWardId = null;
+
+        Districts = await AddressService.GetDistrictsByProvinceAsync(selectedId);
+        Wards.Clear();
+
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task OnDistrictChanged(int selectedId)
+    {
+        SelectedDistrictId = selectedId;
+
+        var selected = Districts.FirstOrDefault(d => d.Code == selectedId);
+        if (selected == null) return;
+
+        Value ??= new AddressInfo();
+        Value.DistrictId = selected.Code;
+        Value.DistrictName = selected.Name;
+
+        Wards = await AddressService.GetWardsByDistrictAsync(selectedId);
+        Value.WardId = 0;
+        Value.WardName = null;
+
+        SelectedWardId = null;
+
+
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task OnWardChanged(int selectedId)
+    {
+        SelectedWardId = selectedId;
+
+        var selected = Wards.FirstOrDefault(w => w.Code == selectedId);
+        if (selected == null) return;
+
+        Value ??= new AddressInfo();
+        Value.WardId = selected.Code;
+        Value.WardName = selected.Name;
+
+        await ValueChanged.InvokeAsync(Value);
+    }
+}
+

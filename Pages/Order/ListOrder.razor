@@ -1,0 +1,460 @@
+﻿@page "/list-order"
+
+@using MenShopBlazor.DTOs.Order.CreateOrder
+@using MenShopBlazor.DTOs.Order.OrderReponse
+@using MenShopBlazor.DTOs.Order
+@using MenShopBlazor.Services.Order
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Extensions
+@using MenShopBlazor.Services.Branch
+@using MenShopBlazor.DTOs.Branch
+@inject IBranchService BranchService
+@inject ITokenService TokenService
+@inject IAdminService AdminService
+@inject IOrderService OrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+@if (!_loading)
+{
+    @if (role == "Customer")
+    {
+        <MudPaper Class="pa-4">
+
+            <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+            <MudText Typo="Typo.h5" Class="mb-4">Đơn hàng của tôi</MudText>
+            <MudStack  Class="mb-4">
+                <MudText Typo="Typo.subtitle2">Lọc theo trạng thái:</MudText>
+                <MudSelect  Variant="Variant.Outlined" T="OrderStatus?" @bind-Value="selectedStatusFilter" Label="Trạng thái" Dense="true" Class="w-50">
+                    <MudSelectItem Value="@(null as OrderStatus?)">Tất cả</MudSelectItem>
+                    <MudSelectItem Value="@(OrderStatus.Created as OrderStatus?)">Mới</MudSelectItem>
+                    <MudSelectItem Value="@(OrderStatus.Pending as OrderStatus?)">Chờ xác nhận</MudSelectItem>
+                    <MudSelectItem Value="@(OrderStatus.Confirmed as OrderStatus?)">Đã xác nhận</MudSelectItem>
+                    <MudSelectItem Value="@(OrderStatus.Paid as OrderStatus?)">Đã thanh toán</MudSelectItem>
+                    <MudSelectItem Value="@(OrderStatus.Delivering as OrderStatus?)">Đang giao</MudSelectItem>
+                    <MudSelectItem Value="@(OrderStatus.Completed as OrderStatus?)">Hoàn thành</MudSelectItem>
+                    <MudSelectItem Value="@(OrderStatus.Cancelled as OrderStatus?)">Đã hủy</MudSelectItem>
+                </MudSelect>
+            </MudStack>
+                <MudStack Class="mb-4" Row="true">
+                    <MudText Typo="Typo.subtitle2">Lọc theo ngày:</MudText>
+                    <MudDateRangePicker @bind-DateRange="_dateRange"
+                                        DateFormat="dddd, dd MMMM, yyyy" TitleDateFormat="MMMM dd" Margin="Margin.Dense"
+                                        Variant="Variant.Outlined" Label="Lọc" />
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               Size="Size.Small"
+                               OnClick="@(() => _dateRange = new DateRange(null, null))">
+                        Xóa lọc ngày
+                    </MudButton>
+
+                </MudStack>
+
+            @if (filteredOrders.Count == 0)
+            {
+                <MudText Typo="Typo.subtitle1" Class="fw-bold">Không có đơn hàng nào.</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@GoToProduct">
+                    Mua sắm ngay
+                </MudButton>
+            }
+            else
+            {
+                @foreach (var order in filteredOrders.Take(visibleOrderCount))
+                {
+                    <MudPaper Elevation="3" Class="mb-3 pa-4">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.subtitle1" Class="fw-bold">
+                                Mã hóa đơn: @order.OrderId - @order.CreatedDate?.ToString("dd/MM/yyyy")
+                            </MudText>
+
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" />
+                                <strong>Người nhận:</strong> @order.ReceiverName
+                            </MudText>
+
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.Phone" />
+                                <strong>SDT:</strong> @order.ReceiverPhone
+                            </MudText>
+
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" />
+                                <strong> Tổng hóa đơn:</strong>  @string.Format("{0:N0} ₫", order.Total)
+                            </MudText>
+
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText Typo="Typo.body2">Tình trạng đơn hàng:</MudText>
+
+                                <MudButton 
+                                           Variant="Variant.Filled"
+                                           Color="@GetStatusColor(order.Status)">
+                                            @GetStatusLabel(order.Status)
+                                </MudButton>
+
+
+                                @if (order != null && order.Status == OrderStatus.Confirmed || order.Status == OrderStatus.Pending)
+                                {
+                                    <MudButton OnClick="@(() => CancelOrder(order.OrderId))"
+                                                   Variant="Variant.Outlined"
+                                                   Color="Color.Error"
+                                                   Size="Size.Medium"
+                                                    StartIcon="@Icons.Material.Filled.Cancel">
+                                        Hủy
+                                    </MudButton>
+                                    
+                                }
+                            </MudStack>
+
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => GoToDetailOrderPage(order.OrderId))">
+                                Xem chi tiết
+                            </MudButton>
+                        </MudStack>
+                    </MudPaper>
+                }
+                @if (visibleOrderCount < orders.Count)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@ShowAllOrders">
+                        <MudIcon Icon="@Icons.Material.Filled.ExpandMore" />
+                        Xem thêm
+                    </MudButton>
+                }
+                else if (orders.Count > defaultVisibleCount)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@CollapseOrders">
+                        <MudIcon Icon="@Icons.Material.Filled.ExpandLess" />
+                        Ẩn bớt
+                    </MudButton>
+                }
+            }
+        </MudContainer>
+        </MudPaper>
+        <MudScrollToTop>
+            <MudFab Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.ArrowUpward" />
+        </MudScrollToTop>
+    }
+    else
+    {
+         <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+                <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH HÓA ĐƠN</MudText>
+
+                        <MudDataGrid T="OrderViewModel"
+                                     Items="@orders"
+                                     RowsPerPage="8"
+                                     Dense="true"
+                                     Filterable="true"
+                                     FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                            <Columns>
+                                <PropertyColumn Property="x => x.OrderId"
+                                                Title="MÃ HÓA ĐƠN"
+                                                Editable="false" />
+                            <TemplateColumn Title="NGÀY TẠO">
+                                <CellTemplate>
+                                    @if (context.Item.CreatedDate.HasValue)
+                                    {
+                                        @context.Item.CreatedDate?.ToString("dd/MM/yyyy")
+                                    }
+                                </CellTemplate>
+                            </TemplateColumn>
+                                <PropertyColumn Property="x => x.IsOnline" Title="LOẠI ĐƠN" Filterable="false" />
+                                <PropertyColumn Property="x => x.Address" Title="ĐỊA CHỈ GIAO HÀNG" Filterable="false" />
+                                <PropertyColumn Property="x => x.ReceiverName" Title="NGƯỜI NHẬN" Filterable="false" />
+                                <PropertyColumn Property="x => x.ReceiverPhone" Title="SĐT NGƯỜI NHẬN" Filterable="false" />
+                            @* <PropertyColumn Property="x => x.Subtotal" Title="TẠM TÍNH" Filterable="false" />*@
+                                <PropertyColumn Property="x => x.ShippingFee" Title="PHÍ SHIP" Filterable="false" /> 
+
+                                <TemplateColumn Title="TỔNG TIỀN">
+                                    <CellTemplate>
+                                        @if (context.Item.Total.HasValue)
+                                        {
+                                            @string.Format("{0:N0} ₫", context.Item.Total)
+                                        }
+                                    </CellTemplate>
+
+                                </TemplateColumn>
+                                <PropertyColumn Property="x => x.Status" Title="TRẠNG THÁI">
+                                    <CellTemplate>
+                                        <MudIconButton Style="cursor: pointer"
+                                                       Color="@GetStatusColor(context.Item.Status)"
+                                                       Variant="Variant.Filled">
+                                            @GetStatusLabel(context.Item.Status)
+                                        </MudIconButton>
+                                    </CellTemplate>
+                                </PropertyColumn>
+
+                               <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                                    <CellTemplate>
+                                        <MudStack Row>
+                                            <MudButton StartIcon="@Icons.Material.Filled.DataSaverOn"
+                                                       Size="Size.Small"
+                                                       Color="Color.Tertiary"
+                                                       Class="ml-2"
+                                                       OnClick="@(() => GoToDetailOrderPage(context.Item.OrderId))">
+                                                Chi tiết
+                                            </MudButton>
+
+                                            @if (role == "Shipper")
+                                            {
+                                                @switch (context.Item.Status)
+                                                {
+                                                    case OrderStatus.Confirmed:
+                                                        <MudButton StartIcon="@Icons.Material.Filled.AddCircleOutline"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Primary"
+                                                                   Class="ml-2"
+                                                                   OnClick="@(() => ShipperAcceptOrderAsync(context.Item.OrderId, userId))">
+                                                            Xác nhận đơn
+                                                        </MudButton>
+                                                        break;
+
+                                                    case OrderStatus.Delivering:
+                                                        <MudButton StartIcon="@Icons.Material.Filled.CheckCircleOutline"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Success"
+                                                                   Class="ml-2"
+                                                                   OnClick="@(() => CompleteOrder(context.Item.OrderId))">
+                                                            Hoàn thành
+                                                        </MudButton>
+                                                        break;
+
+
+                                                }
+                                            }
+                                        </MudStack>
+                                    </CellTemplate>
+                                </TemplateColumn>
+
+                            </Columns>
+
+                            <PagerContent>
+                                <MudDataGridPager T="OrderViewModel" />
+                            </PagerContent>
+                        </MudDataGrid>
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+    }
+
+}
+
+@code 
+{
+    private DateRange _dateRange { get; set; } = new DateRange(null, null);
+
+    private bool IsDelivering(string status)
+    {
+        return status == "Delivering";
+    }
+    private OrderStatus? selectedStatusFilter = null;
+    private List<OrderViewModel> filteredOrders
+        => string.IsNullOrEmpty(role) || role != "Customer"
+            ? orders
+            : orders
+                .Where(o =>
+                    (selectedStatusFilter == null || o.Status == selectedStatusFilter)
+                    && (!_dateRange.Start.HasValue || !_dateRange.End.HasValue
+                        || (o.CreatedDate.HasValue
+                            && o.CreatedDate.Value.Date >= _dateRange.Start.Value.Date
+                            && o.CreatedDate.Value.Date <= _dateRange.End.Value.Date))
+                )
+                .ToList();
+
+
+
+    private List<BreadcrumbItem> _items = new();
+    private List<OrderViewModel> orders = new();
+    private string? alertMessage;
+    private Severity alertSeverity;
+    private bool _loading;
+    private string? role;
+    private string? userId;
+    private int defaultVisibleCount = 3;
+    private int visibleOrderCount;
+    private void ShowAllOrders()
+    {
+        visibleOrderCount = orders.Count;
+    }
+
+    private void CollapseOrders()
+    {
+        visibleOrderCount = defaultVisibleCount;
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        visibleOrderCount = defaultVisibleCount;
+        userId = await TokenService.GetUserIdAsync();
+        role = await TokenService.GetRoleAsync();
+        Console.WriteLine("Role cua ban:" + role);
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Đơn hàng", href: "/list-order", icon: Icons.Material.Filled.List),
+        };
+        await LoadOrdersAsync();
+    }
+    private async Task LoadOrdersAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        List<OrderViewModel>? result = new();
+
+        if (role == "Admin" || role == "RevenueManager")
+        {
+            result = await OrderService.GetAllOrdersAsync();
+        }
+        else if (role == "BranchManager")
+        {
+            var branchRes = await BranchService.GetAllBranchesAsync();
+            var onlineBranch = branchRes.Data?.FirstOrDefault(b => b.IsOnline == true);
+            var userRes = await AdminService.GetCurrentUserAsync();
+            var branchId = userRes?.Data?.BranchId;
+
+            if (branchId == onlineBranch?.BranchId)
+            {
+                result = await OrderService.GetAllOnlineOrdersAsync();
+            }
+            else if (branchId != null)
+            {
+                var allOrders = await OrderService.GetAllOrdersAsync();
+                result = allOrders?.Where(o => o.BranchId == branchId).ToList();
+            }
+        }
+        else if (role == "Shipper")
+        {
+            var allOnlineOrders = await OrderService.GetAllOnlineOrdersAsync();
+            result = allOnlineOrders?.Where(o => o.Status == OrderStatus.Confirmed || o.ShipperId == userId).ToList();
+            Console.WriteLine("Sl don tra ve: " + result.Count());
+        }
+        else if (role == "Customer")
+        {
+            result = await OrderService.GetOrdersByCustomerIdAsync(userId);
+
+        }
+        else
+        {
+            Snackbar.Add("Bạn không có quyền truy cập danh sách hóa đơn.", Severity.Error);
+        }
+
+        await Task.Delay(500); 
+        orders = result ?? new();
+        _loading = false;
+        StateHasChanged();
+    }
+
+
+    private async Task GoToDetailOrderPage(string OrderId)
+    {
+        var role = await TokenService.GetRoleAsync();
+
+        if (string.Equals(role, "Customer", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo($"/profile/orders/{OrderId}");
+        }
+        else
+        {
+            Navigation.NavigateTo($"/list-order-detail/{OrderId}");
+        }
+    }
+
+    private void GoToProduct()
+    {
+        Navigation.NavigateTo($"/san-pham");
+    }
+
+    private Color GetStatusColor(OrderStatus? status)
+    {
+        return status switch
+        {
+            OrderStatus.Created => Color.Warning,
+            OrderStatus.Pending => Color.Warning,
+            OrderStatus.Confirmed => Color.Primary,
+            OrderStatus.Paid => Color.Info,
+            OrderStatus.Delivering => Color.Secondary,
+            OrderStatus.Completed => Color.Success,
+            OrderStatus.Cancelled => Color.Error,
+            OrderStatus.Returned => Color.Error,
+            null => Color.Dark, 
+            _ => Color.Default
+        };
+    }
+
+    private string GetStatusLabel(OrderStatus? status)
+    {
+        return status switch
+        {
+            OrderStatus.Created => "Mới",
+            OrderStatus.Pending => "Chờ xác nhận",
+            OrderStatus.Confirmed => "Đã xác nhận",
+            OrderStatus.Paid => "Đã thanh toán",
+            OrderStatus.Delivering => "Đang giao",
+            OrderStatus.Completed => "Hoàn thành",
+            OrderStatus.Cancelled => "Đã hủy",
+            OrderStatus.Returned => "Đã trả hàng",
+            null => "Chưa xác định",
+            _ => "Không rõ"
+        };
+    }
+
+
+    private async Task ShipperAcceptOrderAsync(string orderId, string shipperId)
+    {
+        var response = await OrderService.UpdateOrderShipperStatusAsync(orderId, shipperId);
+        await LoadOrdersAsync();
+
+        if (response.IsSuccess)
+            Snackbar.Add(response.Message, Severity.Success);
+
+        else
+            Snackbar.Add("Xác nhận đơn hàng thất bại!", Severity.Error);
+    }
+
+    private async Task CompleteOrder(string orderId)
+    {
+        var response = await OrderService.CompleteOrderAsync(orderId);
+
+        if (response.IsSuccess)
+        {
+            Snackbar.Add(response.Message, Severity.Success);
+            await LoadOrdersAsync(); 
+        }
+        else
+        {
+            Snackbar.Add(response.Message, Severity.Error);
+        }
+    }
+    private async Task CancelOrder(string orderId)
+    {
+        var parameters = new DialogParameters();
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = DialogService.Show<CancelOrderDialog>("HỦY ĐƠN HÀNG", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is string reason)
+        {
+            var response = await OrderService.CancelOrderAsync(orderId, reason);
+
+            if (response.IsSuccess)
+            {
+                Snackbar.Add(response.Message, Severity.Success);
+                await LoadOrdersAsync();
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+    }
+}

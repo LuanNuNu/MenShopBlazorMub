@@ -1,9 +1,16 @@
 ﻿@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.DTOs.AddressDTO
 @using MenShopBlazor.Services.Admin
 @using MenShopBlazor.Services.UploadImage
+@using MenShopBlazor.Services.Branch
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.Services.Address
+@inject IAddressService AddressService
+@inject IBranchService BranchService
 @inject IAdminService AdminService
 @inject IUpImg ImageService
 @inject ISnackbar Snackbar
+@using static MenShopBlazor.DTOs.AddressDTO.AddressDTO;
 
 <MudDialog MaxWidth="MaxWidth.Medium">
     <DialogContent>
@@ -80,16 +87,76 @@
                 <MudRadio T="bool?" Value="false" Label="Nữ" />
             </MudRadioGroup>
 
+            @if (_model.WorkArea != null)
+            {
+            <MudSelect T="int"
+                       Label="Tỉnh/Thành phố"
+                       Required="true"
+                       RequiredError="Vui lòng chọn Tỉnh/Thành phố"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined"
+                       Value="_model.WorkArea.ProvinceId ?? 0"
+                       ValueChanged="HandleProvinceChange"
+                       Disabled="Districts.Count == 0">
+                @foreach (var p in Provinces)
+                {
+                    <MudSelectItem Value="@p.Code">@p.Name</MudSelectItem>
+                }
+            </MudSelect>
 
-            <MudTextField @bind-Value="_model.EmployeeAddress"
-                          Label="Địa chỉ làm việc"
-                          Margin="Margin.Dense"
-                          Variant="Variant.Outlined" />
 
-            <MudNumericField T="int?" @bind-Value="_model.BranchId"
-                             Label="Mã chi nhánh"
-                             Margin="Margin.Dense"
-                             Variant="Variant.Outlined" />
+            <MudSelect T="int"
+                       Label="Quận/Huyện"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined"
+                       Value="_model.WorkArea.DistrictId ?? 0"
+                       ValueChanged="HandleDistrictChange"
+                       Required="true"
+                       Disabled="Districts.Count == 0">
+                @foreach (var d in Districts)
+                {
+                    <MudSelectItem Value="@d.Code">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="int"
+                       Label="Phường/Xã"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined"
+                       Value="_model.WorkArea.WardId ?? 0"
+                       ValueChanged="HandleWardChange"
+                       Required="true"
+                       Disabled="Wards.Count == 0">
+                @foreach (var w in Wards)
+                {
+                    <MudSelectItem Value="@w.Code">@w.Name</MudSelectItem>
+                }
+            </MudSelect>
+            }
+            @if (Role == "BranchManager")
+            {
+                <MudSelect T="int" Variant="Variant.Outlined" Label="Chi nhánh" @bind-Value="_model.BranchId" Required="true" Disabled=true>
+                    @if (branches != null)
+                    {
+                        @foreach (var branch in branches)
+                        {
+                            <MudSelectItem Value="@branch.BranchId">@branch.Name</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            } else
+            {
+                <MudSelect T="int" Variant="Variant.Outlined" Label="Chi nhánh" @bind-Value="_model.BranchId" Required="true">
+                    @if (branches != null)
+                    {
+                        @foreach (var branch in branches)
+                        {
+                            <MudSelectItem Value="@branch.BranchId">@branch.Name</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            }
+
 
             <MudTextField @bind-Value="_model.NewPassword"
                           Label="Mật khẩu mới"
@@ -111,7 +178,8 @@
 
     [Parameter]
     public string UserId { get; set; }
-
+    [Parameter]
+    public string Role { get; set; }
     [Parameter]
     public EmployeeUpdateDTO EmployeeData { get; set; }
 
@@ -119,27 +187,47 @@
     private EmployeeUpdateDTO _model = new();
 
     private PreviewImage previewImage;
+    private List<ProvinceDTO> Provinces = new();
+    private List<DistrictDTO> Districts = new();
+    private List<WardDTO> Wards = new();
 
+    private IEnumerable<BranchViewModel> branches = new List<BranchViewModel>();
     public class PreviewImage
     {
         public IBrowserFile File { get; set; }
         public string PreviewUrl { get; set; }
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var allbranch = await BranchService.GetAllBranchesAsync();
+        branches = allbranch.Data ?? new List<BranchViewModel>();
+
+        Provinces = await AddressService.GetProvincesAsync();
         _model = new EmployeeUpdateDTO
-            {
-                FullName = EmployeeData.FullName,
-                PhoneNumber = EmployeeData.PhoneNumber,
-                Email = EmployeeData.Email,
-                BirthDate = EmployeeData.BirthDate,
-                Gender = EmployeeData.Gender,
-                Avatar = EmployeeData.Avatar,
-                EmployeeAddress = EmployeeData.EmployeeAddress,
-                BranchId = EmployeeData.BranchId
-            };
+        {
+            FullName = EmployeeData.FullName,
+            PhoneNumber = EmployeeData.PhoneNumber,
+            Email = EmployeeData.Email,
+            BirthDate = EmployeeData.BirthDate,
+            Gender = EmployeeData.Gender,
+            Avatar = EmployeeData.Avatar,
+            WorkArea = EmployeeData.WorkArea ?? new AddressInfo(),
+            BranchId = EmployeeData.BranchId
+        };
+
+
+        if (_model.WorkArea?.ProvinceId != null)
+        {
+            Districts = await AddressService.GetDistrictsByProvinceAsync(_model.WorkArea.ProvinceId.Value);
+        }
+
+        if (_model.WorkArea?.DistrictId != null)
+        {
+            Wards = await AddressService.GetWardsByDistrictAsync(_model.WorkArea.DistrictId.Value);
+        }
     }
+
 
     private async Task OnFileSelected(IBrowserFile file)
     {
@@ -217,5 +305,56 @@
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private async Task HandleProvinceChange(int selectedId)
+    {
+        var selected = Provinces.FirstOrDefault(p => p.Code == selectedId);
+        if (selected != null)
+        {
+            _model.WorkArea ??= new AddressInfo();
+            _model.WorkArea.ProvinceName = selected.Name;
+            _model.WorkArea.ProvinceId = selected.Code;
+
+            Districts = await AddressService.GetDistrictsByProvinceAsync(selected.Code);
+            Wards.Clear();
+
+            _model.WorkArea.DistrictId = null;
+            _model.WorkArea.DistrictName = null;
+            _model.WorkArea.WardId = null;
+            _model.WorkArea.WardName = null;
+
+            StateHasChanged();
+        }
+    }
+    private async Task HandleDistrictChange(int selectedId)
+    {
+        var selected = Districts.FirstOrDefault(d => d.Code == selectedId);
+        if (selected != null)
+        {
+            _model.WorkArea ??= new AddressInfo();
+            _model.WorkArea.DistrictName = selected.Name;
+            _model.WorkArea.DistrictId = selected.Code;
+
+            Wards = await AddressService.GetWardsByDistrictAsync(selected.Code);
+
+            _model.WorkArea.WardId = null;
+            _model.WorkArea.WardName = null;
+
+            StateHasChanged();
+        }
+    }
+
+    private Task HandleWardChange(int selectedId)
+    {
+        var selected = Wards.FirstOrDefault(w => w.Code == selectedId);
+        if (selected != null)
+        {
+            _model.WorkArea ??= new AddressInfo();
+            _model.WorkArea.WardId = selected.Code;
+            _model.WorkArea.WardName = selected.Name;
+        }
+
+        return Task.CompletedTask;
     }
 }

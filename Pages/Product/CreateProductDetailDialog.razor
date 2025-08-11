@@ -14,6 +14,9 @@
 @inject IColorService ColorService
 @inject IFabricService FabricService
 @inject ISizeService SizeService
+@attribute [Authorize(Roles = "Admin, RevenueManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
 
 <MudDialog>
     <DialogContent>
@@ -143,9 +146,9 @@
             {
                 Snackbar.Add($"{detailText} - {item.Message}", Severity.Error);
             }
-            tempDetails.Clear();
-            StateHasChanged();
         }
+        tempDetails.Clear();
+        StateHasChanged();
 
     }
 

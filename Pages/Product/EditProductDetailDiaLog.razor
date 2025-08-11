@@ -13,6 +13,9 @@
 @inject IColorService ColorService
 @inject IFabricService FabricService
 @inject ISizeService SizeService
+@attribute [Authorize(Roles = "Admin, RevenueManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
 
 <MudDialog>
     <TitleContent>

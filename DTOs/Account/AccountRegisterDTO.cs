@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using MenShopBlazor.DTOs.AddressDTO;
+using System.ComponentModel.DataAnnotations;
 
 namespace MenShopBlazor.DTOs.Account
 
@@ -24,8 +25,7 @@ namespace MenShopBlazor.DTOs.Account
         [DataType(DataType.Date)]
         public DateTime? BirthDate { get; set; }
 
-        [StringLength(200, ErrorMessage = "Địa chỉ không được vượt quá 200 ký tự.")]
-        public string? EmployeeAddress { get; set; }
+        public AddressInfo? WorkArea { get; set; }
 
         [Required(ErrorMessage = "Số điện thoại không được để trống.")]
         [RegularExpression(@"^(0\d{9})$", ErrorMessage = "Số điện thoại phải bắt đầu bằng 0 và có 10 chữ số.")]

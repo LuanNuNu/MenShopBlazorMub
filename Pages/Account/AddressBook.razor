@@ -1,0 +1,217 @@
+﻿@using MenShopBlazor.DTOs.AddressDTO
+@using MenShopBlazor.Services.CustomerAddress
+@using MenShopBlazor.Pages.CustomerAddress
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Shared
+@inject ICustomerAddressService CustomerAddressService
+@inject ISnackbar Snackbar
+@inject ITokenService TokenService
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+@if (!_loading)
+{
+    if (_addresses.Any())
+    {
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Sổ địa chỉ</MudText>
+
+            @if (IsSelectMode)
+            {
+                <MudRadioGroup T="int"
+                               Value="@SelectedAddressId"
+                               ValueChanged="OnAddressSelected">
+                    @foreach (var item in _addresses)
+                    {
+                        <MudItem Class="p-1">
+                            <MudRadio T="int" Value="@item.Id">
+                                <MudStack Spacing="1">
+                                    <MudText Typo="Typo.subtitle1">
+                                        <b>@item.ReceiverName</b> &nbsp;&nbsp; @item.ReceiverPhone
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">@item.FullAddress</MudText>
+                                </MudStack>
+                            </MudRadio>
+                            <MudDivider Class="my-2" />
+                        </MudItem>
+                    }
+                </MudRadioGroup>
+            }
+            else
+            {
+                @foreach (var item in _addresses)
+                {
+                    <MudItem Class="p-1">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.subtitle1">
+                                <b>@item.ReceiverName</b> &nbsp;&nbsp; @item.ReceiverPhone
+                            </MudText>
+
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="d-flex justify-content-between">
+                                <MudText Typo="Typo.body2">@item.FullAddress</MudText>
+
+                                <MudStack Row="true" Spacing="1">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                   Color="Color.Success"
+                                                   OnClick="@(() => OpenUpdateDialog(MapToDTO(item)))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => DeleteAddress(item.Id))" />
+                                </MudStack>
+                            </MudStack>
+                        </MudStack>
+                        <MudDivider Class="my-2" />
+                    </MudItem>
+                }
+            }
+        </MudPaper>
+
+    }
+    else
+    {
+        <MudText Class="mt-2 mb-2" Color="Color.Secondary">Chưa có địa chỉ nào</MudText>
+    }
+
+    <MudButton Color="Color.Primary" Class="mt-2 mb-3" Variant="Variant.Filled" OnClick="OpenAddDialog">
+        Thêm địa chỉ
+    </MudButton>
+}
+
+
+@code {
+    private List<CustomerAddressViewModel> _addresses = new();
+    private bool _loading = false;
+    private string? userId;
+
+    [Parameter]
+    public bool IsSelectMode { get; set; }
+    [Parameter]
+    public int SelectedAddressId { get; set; }
+
+    [Parameter]
+    public EventCallback<int> SelectedAddressIdChanged { get; set; }
+    [Parameter]
+    public EventCallback OnAddressAdded { get; set; }
+    [Parameter]
+    public EventCallback<List<CustomerAddressViewModel>> AddressesChanged { get; set; }
+    public async Task ReloadAsync()
+    {
+        await LoadAddressesAsync();
+        StateHasChanged(); 
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAddressesAsync();
+
+    }
+    private async Task OnAddressSelected(int id)
+    {
+        SelectedAddressId = id;
+        await SelectedAddressIdChanged.InvokeAsync(id);
+    }
+
+    public async Task<List<CustomerAddressViewModel>> LoadAddressesAsync()
+    {
+        await LoadAddressesInternalAsync();
+        return _addresses;
+    }
+    private async Task LoadAddressesInternalAsync()
+    {
+        _loading = true;
+        StateHasChanged(); 
+
+        await Task.Delay(1000); 
+
+        userId = await TokenService.GetUserIdAsync();
+
+        if (userId != null)
+        {
+            var response = await CustomerAddressService.GetByCustomerIdAsync(userId);
+            _addresses = response;
+            await AddressesChanged.InvokeAsync(_addresses);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+
+
+    private void EditAddress(CustomerAddressViewModel address)
+    {
+        Navigation.NavigateTo($"/edit-address/{address.Id}");
+    }
+
+    private async Task DeleteAddress(int id)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá địa chỉ này không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await CustomerAddressService.DeleteAsync(id);
+            await LoadAddressesAsync();
+
+            if (response.IsSuccess)
+                Snackbar.Add(response.Message, Severity.Success);
+            else
+                Snackbar.Add(response.Message, Severity.Error);
+        }
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<AddAddressDialog>("THÊM ĐỊA CHỈ MỚI", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadAddressesAsync();
+        }
+    }
+
+    private async Task OpenUpdateDialog(CreateUpdateCustomerAddressDTO existingAddress)
+    {
+        var parameters = new DialogParameters { ["AddressToUpdate"] = existingAddress };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<EditAddressDialog>("CẬP NHẬT ĐỊA CHỈ", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadAddressesAsync();
+        }
+    }
+
+    private CreateUpdateCustomerAddressDTO MapToDTO(CustomerAddressViewModel viewModel)
+    {
+        return new CreateUpdateCustomerAddressDTO
+        {
+            Id = viewModel.Id,
+            ProvinceId = viewModel.ProvinceId,
+            ProvinceName = viewModel.ProvinceName,
+            DistrictId = viewModel.DistrictId,
+            DistrictName = viewModel.DistrictName,
+            WardId = viewModel.WardId,
+            WardName = viewModel.WardName,
+            Street = viewModel.Street,
+            ReceiverName = viewModel.ReceiverName,
+            ReceiverPhone = viewModel.ReceiverPhone,
+        };
+    }
+}

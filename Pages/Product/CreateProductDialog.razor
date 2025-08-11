@@ -6,6 +6,10 @@
 @inject IProductService ProductService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
 
 <MudDialog MaxWidth="MaxWidth.Small" MaxHeight="unset" Style="overflow-y:hidden;">
     <DialogContent>

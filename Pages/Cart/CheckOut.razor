@@ -1,0 +1,768 @@
+﻿@page "/cart/checkout"
+
+@using MenShopBlazor.Shared
+@using MenShopBlazor.Pages.Account
+@using MenShopBlazor.Pages.CustomerAddress
+@using MenShopBlazor.DTOs.Cart
+@using MenShopBlazor.DTOs.AddressDTO
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.CustomerAddress
+@using MenShopBlazor.Extensions
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.DTOs.Payment
+@using MenShopBlazor.DTOs.Order.CreateOrder
+@using MenShopBlazor.DTOs.Order.OrderReponse
+@using MenShopBlazor.DTOs.VNPay
+@using MenShopBlazor.Services.Payment
+@using MenShopBlazor.Services.Order
+@using MenShopBlazor.Services.Cart
+@using MenShopBlazor.Services.Branch
+@inject IOrderService orderService
+@inject IBranchService BranchService
+@inject ITokenService TokenService
+@inject IAdminService AdminService
+@inject IOrderService OrderService
+@inject ICartService CartService
+@inject ICustomerAddressService CustomerAddressService
+@inject IPaymentService paymentService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
+@inject CartState CartState
+@inject IDialogService DialogService
+@inject BranchHelper BranchHelper
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+@if (!_loading)
+{
+    <MudContainer Class="mt-5 px-8">
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" lg="6" md="6" >
+                <MudPaper>
+                    <MudStepper CenterLabels="true"           
+                                 ActiveIndex="@_stepIndex"
+                                ActiveIndexChanged="@(val => OnStepChanged(val))">
+                        <ChildContent>
+                            <MudStep Title="Đăng nhập"></MudStep>
+                            <MudStep Title="Địa chỉ"></MudStep>
+                            <MudStep Title="Thanh toán"></MudStep>
+                        </ChildContent>
+                        <CompletedContent>
+                            Thanh toán thành công!
+                        </CompletedContent>
+                        <ActionContent>
+             
+                        </ActionContent>
+                    </MudStepper>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12">
+                <MudGrid Class="mt-5">
+                    <MudItem xs="12"  md="8">
+                        <MudExpansionPanels Elevation="1">
+                            <MudExpansionPanel Expanded="@(_stepIndex == 0)">
+                                <TitleContent>
+                                    <div class="d-flex align-items-center">
+                                        <MudIcon Icon="@GetStepIcon(0)"
+                                                 Color="@GetStepIconColor(0)"
+                                                 class="mr-3" />
+                                        <MudText Typo="Typo.h6">Đăng nhập</MudText>
+                                    </div>
+                                </TitleContent>
+                                <ChildContent>
+                                    @if (!_isLoggedIn)
+                                    {
+                                        <LoginForm DisableNavigation="true" OnSuccess="OnLoginSuccess" />
+                                    }
+                                    else
+                                    {
+                                        <MudDivider />
+                                        <MudText Typo="Typo.body1">
+                                            Bạn đã đăng nhập với tài khoản: <b>@_userPhone</b>
+                                        </MudText>
+                                    }
+                                </ChildContent>
+                            </MudExpansionPanel>
+
+                            <MudExpansionPanel Expanded="@(_stepIndex == 1)">
+                                <TitleContent>
+                                    <div class="d-flex align-items-center">
+                                        <MudIcon Icon="@GetStepIcon(1)"
+                                                 Color="@GetStepIconColor(1)"
+                                                 class="mr-3" />
+                                        <MudText Typo="Typo.h6">Địa chỉ</MudText>
+                                    </div>
+                                </TitleContent>
+                                <ChildContent>
+                                    <MudText Typo="Typo.subtitle2">Thông tin người nhận hàng</MudText>
+                                    <AddressBook @ref="_addressBookRef"
+                                                 IsSelectMode="true"
+                                                 SelectedAddressId="@_selectedAddressId"
+                                                 SelectedAddressIdChanged="OnSelectedAddressChanged"
+                                                 AddressesChanged="OnAddressesChanged" />
+
+                                    @if (SelectedAddress is not null)
+                                    {
+                                        <MudPaper Class="p-3 mt-2" Elevation="1">
+                                            <MudText Typo="Typo.subtitle1"><b>Địa chỉ được chọn:</b></MudText>
+                          
+                                            <MudText>@SelectedAddress.FullAddress</MudText>
+                                        </MudPaper>
+                                    }
+                                    <MudDivider Class="my-2" />
+                                    <MudStack Row="true" Spacing="2" Class="mt-2 mb-3">
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Default"
+                                                   OnClick="@(() => _stepIndex = 1)">
+                                            Quay lại
+                                        </MudButton>
+
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Primary"
+                                                   OnClick="@(() => _stepIndex = 2)">
+                                            Đi đến thanh toán
+                                        </MudButton>
+                                    </MudStack>
+                                </ChildContent>
+                            </MudExpansionPanel>
+
+                            <MudExpansionPanel Expanded="@(_stepIndex == 2)">
+                                <TitleContent>
+                                    <div class="d-flex align-items-center">
+                                        <MudIcon Icon="@GetStepIcon(2)"
+                                                 Color="@GetStepIconColor(2)"
+                                                 Class="mr-3" />
+                                        <MudText Typo="Typo.h6">Thanh toán</MudText>
+                                    </div>
+                                </TitleContent>
+                                <ChildContent>
+                                    <MudText Typo="Typo.subtitle2">
+                                        Chọn phương thức thanh toán
+                                    </MudText>
+                                    <MudRadioGroup T="PaymentMethod"
+                                                   @bind-Value="paymentMethod"
+                                                   Immediate="true"
+                                                   Class="mt-3">
+                                        <MudStack Row=false>
+
+                                            <MudRadio T="PaymentMethod" Color="Color.Primary" Value="@PaymentMethod.COD">
+                                                Thanh toán khi nhận hàng
+                                            </MudRadio>
+                                            <MudRadio T="PaymentMethod" Color="Color.Secondary" Value="@PaymentMethod.VNPay">
+                                                Thanh toán VNPay
+                                            </MudRadio>
+                                            <MudRadio T="PaymentMethod" Color="Color.Tertiary" Value="@PaymentMethod.Momo" Disabled="true">
+                                                Thanh toán MoMo
+                                            </MudRadio>
+                                        </MudStack>
+                                    </MudRadioGroup>
+
+                                    <MudStack Spacing="2" Class="mt-4">
+                                        <MudText Typo="Typo.subtitle2">
+                                            Nhập mã ưu đãi(nếu có)
+                                        </MudText>
+                                        <MudStack Row=true Spacing="1" AlignItems="AlignItems.Center">
+                                            <MudTextField @bind-Value="Voucher"
+                                                          Label="Nhập mã ưu đãi"
+                                                          Variant="Variant.Outlined"
+                                                          Class="flex-grow-1" />
+                                            <MudButton Variant="Variant.Filled"
+                                                       Color="Color.Primary"
+                                                       OnClick="ApplyVoucher">
+                                                Áp dụng
+                                            </MudButton>
+                                        </MudStack>
+
+
+                                        <MudStack Row=true Spacing="1" AlignItems="AlignItems.Center">
+                                            <MudTextField @bind-Value="Phone"
+                                                          Label="Nhập SĐT khách hàng thân thiết"
+                                                          Variant="Variant.Outlined"
+                                                          Class="flex-grow-1" />
+                                            <MudButton Variant="Variant.Filled"
+                                                       Color="Color.Secondary"
+                                                       OnClick="ApplyLoyalCustomer">
+                                                Áp dụng
+                                            </MudButton>
+                                        </MudStack>
+                                    </MudStack>
+                                </ChildContent>
+                            </MudExpansionPanel>
+
+                        </MudExpansionPanels>
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudPaper Class="p-4">
+                            <MudStack Spacing="2" Class="mt-2">
+                                <MudItem class="d-flex justify-content-between">
+                                    <MudText Typo="Typo.subtitle2">Giá trị đơn hàng:</MudText>
+                                    <MudText Typo="Typo.subtitle2"><b>@TotalPriceItem.ToString("N0") đ</b></MudText>
+                                </MudItem>
+
+                                <MudItem class="d-flex justify-content-between">
+                                    <MudText Typo="Typo.subtitle2">Tổng số lượng:</MudText>
+                                    <MudText Typo="Typo.subtitle2"><b>@totalQuantity</b></MudText>
+                                </MudItem>
+
+                                @if (_stepIndex >= 2)
+                                {
+                                    var fee = TotalPriceItem > 900000 ? 0 : shippingFee;
+
+                                    <MudItem class="d-flex justify-content-between">
+                                        <MudText Typo="Typo.subtitle2">Phí vận chuyển:</MudText>
+                                        <MudText Typo="Typo.subtitle2">
+                                            <b>@(fee == 0 ? "Miễn phí" : fee.ToString("N0") + " đ")</b>
+                                        </MudText>
+                                    </MudItem>
+                                }
+
+
+                                <MudDivider Class="my-2" />
+
+                                <MudItem class="d-flex justify-content-between">
+                                    <MudText Typo="Typo.subtitle1"><b>Tạm tính:</b></MudText>
+                                    <MudText Typo="Typo.subtitle1"><b>@TotalPrice.ToString("N0") đ</b></MudText>
+                                </MudItem>
+
+                            </MudStack>
+
+                            <MudExpansionPanel Text="Sản phẩm đang thanh toán" Expanded="true" Class="border rounded mt-2">
+                                <TitleContent>
+                                    <div class="d-flex align-items-center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Payment"></MudIcon>
+                                        <MudText Typo="Typo.subtitle1">Sản phẩm đang thanh toán(@totalQuantity)</MudText>
+                                    </div>
+                                </TitleContent>
+                                <ChildContent>
+                                    @if (CartItems.Any())
+                                    {
+                                        <div class="overflow-y-auto" style="height: 300px">
+                                            @foreach (var item in CartItems)
+                                            {
+                                                <MudItem Class="d-flex mb-3">
+                                                    <MudAvatar Rounded="true" Class="me-4" Style="width: 96px; height: 110px;">
+                                                        <MudImage Class="object-fit-cover" Src="@item.Images?.FirstOrDefault()" />
+                                                    </MudAvatar>
+                                                    <MudStack Spacing="1">
+                                                        <MudText Typo="Typo.subtitle2">@item.ProductName</MudText>
+                                                        <MudText Typo="Typo.body2">
+                                                            Size: @item.SizeName | Màu: @item.ColorName | Chất liệu: @item.FabricName
+                                                        </MudText>
+                                                        <MudStack Row="true" Class="my-4 d-flex align-items-center" Spacing="1">
+                                                            @if (item.DiscountPercent > 0)
+                                                            {
+
+                                                                <MudText Typo="Typo.body1" Style="@($"color:{Colors.Gray.Lighten1};")" Class="text-decoration-line-through">
+                                                                    @string.Format("{0:N0} ₫", item.SellPrice)
+                                                                </MudText>
+
+                                                                <MudText Typo="Typo.body1" Class="ms-2">
+                                                                    <strong>
+                                                                        @string.Format("{0:N0} ₫", item.DiscountedPrice)
+                                                                    </strong>
+                                                                </MudText>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudText Typo="Typo.body2">
+                                                                    Giá:  @string.Format("{0:N0} ₫", item.SellPrice)
+                                                                </MudText>
+                                                            }
+                                                        </MudStack>
+                                                        <MudText Typo="Typo.subtitle1">Số lượng: @item.Quantity</MudText>
+                                                        <MudDivider />
+                                                    </MudStack>
+                                                </MudItem>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.body1">Không có sản phẩm nào trong giỏ.</MudText>
+                                    }
+
+
+                                </ChildContent>
+                            </MudExpansionPanel>
+
+                        </MudPaper>
+
+                        @if (_stepIndex == 2)
+                        {
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       FullWidth="true"
+                                       Class="mt-4"
+                                       OnClick="PlaceOrder">
+                                Đặt hàng
+                            </MudButton>
+                        }
+
+                    </MudItem>
+
+                </MudGrid>
+            </MudItem>
+        </MudGrid>
+
+    </MudContainer>
+}
+
+@code {
+    private bool _loading = false;
+    private string? role;
+    private string? userId;            
+    private string? _userPhone;
+    private bool _isLoggedIn = false;
+    private PaymentMethod paymentMethod { get; set; }
+    private int _selectedAddressId;
+    private int _internalSelectedAddressId;
+    private int? BranchId;
+    private CustomerAddressViewModel? SelectedAddress;
+
+    private List<CustomerAddressViewModel> AddressList = new();
+    private AddressBook _addressBookRef;
+    private int _stepIndex = 0;
+
+    int totalQuantity => CartItems?.Sum(item => item.Quantity) ?? 0;
+    private List<CartDetailViewModel> CartItems = new();
+    private BranchProductDetailModel branchProductDetail = new();
+
+    private decimal TotalPriceItem => CartItems.Sum(x =>
+        (x.DiscountedPrice ?? x.SellPrice ?? 0) * (x.Quantity ?? 0));
+    private decimal shippingFee = 20000;
+    private decimal TotalPrice
+    {
+        get
+        {
+            if (_stepIndex < 2)
+                return TotalPriceItem;
+
+            var fee = TotalPriceItem > 900000 ? 0 : shippingFee;
+            return TotalPriceItem + fee;
+        }
+    }
+
+    private string anonymousId = "";
+
+    private string? ReceiverName;
+    private string? ReceiverPhone;
+    private string? FullAddress;
+
+    private string Voucher { get; set; }
+    private string Phone { get; set; }
+
+    private async Task OnSelectedAddressChanged(int id)
+    {
+
+        _selectedAddressId = id;
+        SelectedAddress = AddressList.FirstOrDefault(a => a.Id == id);
+
+        if (SelectedAddress != null)
+        {
+            ReceiverName = SelectedAddress.ReceiverName;
+            ReceiverPhone = SelectedAddress.ReceiverPhone;
+            FullAddress = $"{SelectedAddress.Street}, {SelectedAddress.WardName}, {SelectedAddress.DistrictName}, {SelectedAddress.ProvinceName}";
+        }
+
+        await InvokeAsync(StateHasChanged); 
+    }
+
+
+    string ApplyInputIcon = Icons.Material.Filled.AddCircleOutline;
+
+
+    private void OnStepChanged(int step)
+    {
+        _stepIndex = step;
+        StateHasChanged();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        var (custId, anonId) = await GetIdsAsync();
+        userId = custId;  
+        anonymousId = anonId;
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            _isLoggedIn = true;
+
+            await MergeCartAsync(userId, anonymousId);
+
+            var _user = await AdminService.GetCurrentUserAsync();
+            _userPhone = _user.Data?.UserPhone;
+
+            await LoadCartByIdAsync(userId);
+            await RefreshCartItemsPriceAsync();
+
+            _stepIndex = 1;
+        }
+        else
+        {
+            await LoadCartAsync(null, anonymousId);
+            await RefreshCartItemsPriceAsync();
+
+            _stepIndex = 0; 
+        }
+    }
+
+
+    private async Task<(string? CustomerId, string AnonymousId)> GetIdsAsync()
+    {
+        var tokenInfo = await TokenService.GetTokenInfoAsync();
+        var custId = tokenInfo?.UserId;
+
+        var anonId = string.IsNullOrEmpty(custId) ? await GetOrCreateAnonymousIdAsync() : "";
+        return (custId, anonId);
+    }
+
+
+    private async Task<string> GetOrCreateAnonymousIdAsync()
+    {
+        var id = await JS.InvokeAsync<string>("localStorage.getItem", "anonymousId");
+        if (string.IsNullOrEmpty(id))
+        {
+            id = Guid.NewGuid().ToString();
+            await JS.InvokeVoidAsync("localStorage.setItem", "anonymousId", id);
+        }
+        return id;
+    }
+
+    private async Task MergeCartAsync(string userId, string anonId)
+    {
+        if (string.IsNullOrEmpty(anonId))
+            return;
+
+        var request = new MergeCartRequestDTO
+        {
+            CustomerId = userId,
+            AnonymousId = anonId
+        };
+
+        var result = await CartService.MergeCartAsync(request);
+
+        if (result?.IsSuccess == true)
+        {
+            await JS.InvokeVoidAsync("localStorage.removeItem", "anonymousId");
+        }
+    }
+
+
+    private async Task LoadCartAsync(string userId, string anonId, bool showLoading = true, bool useDelay = false)
+    {
+        if (showLoading)
+        {
+            _loading = true;
+            StateHasChanged();
+        }
+
+        var loadCartTask = CartService.GetCartAsync(userId, anonId);
+        Task delayTask = useDelay ? Task.Delay(1000) : Task.CompletedTask;
+        await Task.WhenAll(loadCartTask, delayTask);
+
+        var result = loadCartTask.Result;
+
+        if (result?.IsSuccess == true)
+        {
+            CartItems = result.Data?.Details?.ToList() ?? new();
+            CartState.SetItems(CartItems);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadCartByIdAsync(string userId)
+    {
+        var result = await CartService.GetCartAsync(userId, null);
+        if (result?.IsSuccess == true)
+        {
+            CartItems = result.Data?.Details?.ToList() ?? new();
+            CartState.SetItems(CartItems);
+        }
+    }
+
+    private async Task RefreshCartItemsPriceAsync()
+    {
+        if (CartItems == null || CartItems.Count == 0)
+            return;
+
+        var updatedItems = new List<CartDetailViewModel>();
+
+        foreach (var item in CartItems)
+        {
+            var response = await BranchService.GetBranchProductDetailAsync(
+                branchId: BranchId ?? 0,
+                productDetailId: item.DetailId
+            );
+
+            if (response.IsSuccess && response.Data != null)
+            {
+                var detail = response.Data;
+                item.SellPrice = detail.SellPrice;
+                item.DiscountedPrice = detail.DiscountedPrice;
+                item.DiscountPercent = detail.DiscountPercent;
+            }
+
+            updatedItems.Add(item);
+        }
+
+        CartItems = updatedItems;
+    }
+
+
+    private async Task OnLoginSuccess()
+    {
+        _isLoggedIn = true;
+        await _addressBookRef.ReloadAsync();
+        var _user = await AdminService.GetCurrentUserAsync();
+        if(_user.Data != null)
+        {
+            _userPhone = _user.Data.UserPhone;
+            userId = _user.Data.UserId;    
+        }
+        await LoadAddressesAsync();
+        await LoadCartAsync(userId);
+        await RefreshCartItemsPriceAsync();
+        OnStepChanged(1);
+    }
+    private async Task OpenAddDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<AddAddressDialog>("THÊM ĐỊA CHỈ MỚI", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await _addressBookRef.ReloadAsync(); // gọi reload qua @ref
+        }
+    }
+
+
+    private async Task LoadAddressesAsync()
+    {
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var response = await CustomerAddressService.GetByCustomerIdAsync(userId);
+            AddressList = response;
+            if (AddressList.Any())
+            {
+                _selectedAddressId = AddressList.First().Id;
+                await OnSelectedAddressChanged(_selectedAddressId);
+            }
+        }
+    }
+    private async Task OnAddressesChanged(List<CustomerAddressViewModel> addresses)
+    {
+        AddressList = addresses;
+
+        // Nếu chưa có địa chỉ nào được chọn, chọn địa chỉ đầu tiên
+        if (AddressList.Any() && _selectedAddressId == 0)
+        {
+            var latest = AddressList.OrderByDescending(a => a.Id).First();
+            _selectedAddressId = latest.Id;
+            await OnSelectedAddressChanged(_selectedAddressId);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task EnsureBranchIdAsync()
+    {
+        if (BranchId != null && BranchId > 0)
+            return;
+
+        BranchId = await BranchHelper.GetBranchIdAsync(role);
+    }
+
+
+    private string GetStepIcon(int index)
+    {
+        return _stepIndex > index
+            ? Icons.Material.Filled.CheckCircleOutline
+            : Icons.Material.Filled.ArrowRight;
+    }
+
+    private Color GetStepIconColor(int index)
+    {
+        return _stepIndex > index
+            ? Color.Success
+            : Color.Default;
+    }
+
+
+    private async Task LoadCartAsync(string userId)
+    {
+
+        var result = await CartService.GetCartAsync(userId, null);
+
+        if (result?.IsSuccess == true)
+        {
+            CartItems = result.Data?.Details?.ToList() ?? new();
+            CartState.SetItems(CartItems);
+        }
+    }
+
+
+    private async Task PlaceOrder()
+    {
+        var orderResponse = await CreateOrderAsync();
+        if (orderResponse == null)
+        {
+            Snackbar.Add("Lỗi tạo hóa đơn!", Severity.Error);
+            return;
+        }
+
+        if (!orderResponse.IsSuccess)
+        {
+            Snackbar.Add($"Tạo hóa đơn thất bại: {orderResponse.Message}", Severity.Error);
+            return;
+        }
+
+        var orderId = orderResponse.OrderId;
+        var preCheck = await orderService.AutoApproveOrderAsync(orderId);
+        if (preCheck.Success)
+        {      
+            switch (paymentMethod)
+            {
+                case PaymentMethod.VNPay:
+                    await HandleVNPayAsync(orderId);
+                    break;
+
+                default:
+                    await HandleCODPaymentAsync(orderId);
+                    break;
+            }
+        }
+        else
+            Snackbar.Add(preCheck.Message, Severity.Error);
+    }
+    private async Task<OrderResponseDTO?> CreateOrderAsync()
+    {
+        if (SelectedAddress == null)
+        {
+            Snackbar.Add("Vui lòng chọn địa chỉ giao hàng", Severity.Warning);
+            return null;
+        }
+
+        var createOrderDto = new CreateOrderDTO
+        {
+            CustomerId = userId,
+            ReceiverName = ReceiverName,
+            ReceiverPhone = ReceiverPhone,
+            Address = FullAddress,
+            ShippingFee = shippingFee,
+            Details = CartItems.Select(i => new CreateOrderDetailDTO
+            {
+                ProductDetailId = i.DetailId,
+                Quantity = i.Quantity ?? 0,
+                SellPrice = i.SellPrice ?? 0,
+                DiscountedPrice = i.DiscountedPrice ?? 0
+            }).ToList()
+        };
+
+        return await OrderService.CreateOrderAsync(createOrderDto);
+    }
+
+    private async Task HandleVNPayAsync(string orderId)
+    {
+        var useName = await TokenService.GetUserNameAsync();
+        var vnRequest = new VnPaymentRequestModel
+        {
+            OrderId = $"{orderId}",
+            FullName = $"{useName}",
+            Description = $"Đơn hàng của {userId}",
+            Amount = (int)TotalPrice
+        };
+
+        var url = await paymentService.CreateVNPayUrlAsync(vnRequest);
+        Console.WriteLine($"Kết quả trả về từ server: {url}");
+
+        if (string.IsNullOrEmpty(url))
+        {
+            Snackbar.Add("Không thể tạo liên kết VNPay. Vui lòng thử lại.", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters
+    {
+        { "ContentText", "Bạn có chắc chắn muốn chuyển đến VNPay để thanh toán không?" }
+    };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+        var dialog = DialogService.Show<ConfirmDialog>("Xác nhận", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            Snackbar.Add("Đang chuyển tới VNPay...", Severity.Info);
+            Console.WriteLine("VNPay URL: " + url);
+            await Task.Delay(500);
+            NavManager.NavigateTo(url);
+        }
+        else
+        {
+            Snackbar.Add("Bạn đã hủy thanh toán VNPay", Severity.Warning);
+        }
+    }
+
+
+    private async Task HandleCODPaymentAsync(string orderId)
+    {
+        var paymentDto = new CreatePaymentDTO
+        {
+            Amount = (int)TotalPrice,
+            Method = (PaymentMethod)2 ,
+            Status = PaymentStatus.Pending,
+            PaymentDate = null,
+            TransactionCode = "",
+            PaymentProvider = "COD",
+            Notes = "Thanh toán khi nhận hàng"
+        };
+
+        Console.WriteLine("OrderId: " + orderId);
+        try
+        {
+            var paymentResult = await paymentService.AddPaymentToOrderAsync(orderId, paymentDto);
+            if (paymentResult != null)
+            {
+                Snackbar.Add($"Đặt hàng thành công ", Severity.Success);
+                var queryParams = $"?orderId={orderId}&amount={TotalPrice}&transactionCode={paymentDto.TransactionCode}&method=COD";
+                NavManager.NavigateTo($"/payment-result{queryParams}");
+            }
+            else
+            {
+                Snackbar.Add("Lưu thông tin thanh toán thất bại.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+
+    }
+
+
+    private string GetPaymentMethodName() =>
+       paymentMethod switch
+       {
+           PaymentMethod.VNPay => "VNPay",
+           PaymentMethod.Momo => "MoMo",
+           PaymentMethod.COD => "COD",
+           _ => "Không rõ"
+       };
+
+    private void ApplyVoucher()
+    {
+        // xử lý áp dụng mã ưu đãi
+    }
+
+    private void ApplyLoyalCustomer()
+    {
+        // xử lý áp dụng khách hàng thân thiết
+    }
+}

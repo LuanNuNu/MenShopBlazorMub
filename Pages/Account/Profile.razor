@@ -1,0 +1,336 @@
+﻿@page "/profile"
+@page "/profile/info"
+@page "/profile/favorite"
+@page "/profile/orders"
+@page "/profile/orders/{OrderId}"
+@page "/profile/address"
+@page "/profile/change-password"
+
+@using MenShopBlazor.DTOs.Cart
+@using MenShopBlazor.DTOs.Account
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Services.Account
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.Auth
+@using MenShopBlazor.Pages.Order
+@inject ITokenService TokenService
+@inject IAdminService AdminService
+@inject ISnackbar Snackbar
+@inject CustomAuthProvider AuthProvider
+@inject NavigationManager NavManager
+@inject CartState CartState
+
+    <MudContainer Class="mt-5 px-8">
+    @if (initialLoading)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" Fixed="true" ZIndex="1300">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </MudOverlay>
+    }
+        else
+    {
+        <MudBreadcrumbs Items="_items" />
+        <MudGrid>
+        <MudItem xs="12" md="3">
+            <MudHidden Breakpoint="Breakpoint.MdAndDown">
+                <MudPaper Elevation="0" Class="pa-2">
+                    <MudNavMenu Bordered="true" Color="Color.Info">
+                        @if (initialLoading)
+                        {
+                            <MudSkeleton Height="40px" Width="80%" Class="mx-4 my-2" />
+                            <MudSkeleton Height="24px" Width="60%" Class="mx-4" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.subtitle1" Class="px-4">Xin chào</MudText>
+                            <MudText Typo="Typo.h6" Class="px-4">Xin chào @_userName</MudText>
+                        }
+                        <MudDivider Class="my-2" />
+
+                        @foreach (var tab in Enum.GetValues<ProfileTab>())
+                        {
+                            if (tab == ProfileTab.Logout)
+                            {
+                                    <MudNavLink Icon="@Icons.Material.Filled.Logout"
+                                                IconColor="Color.Inherit"
+                                                Class="text-error font-weight-bold"
+                                                Style="@($"color:{Colors.Red.Lighten1};")"
+                                                OnClick="@(() => SetTab(tab))">
+                                        @TabName(tab)
+                                    </MudNavLink>
+                            }
+                            else
+                            {
+                                <MudNavLink Icon="@Icons.Material.Filled.ChevronRight"
+                                            OnClick="@(() => SetTab(tab))">
+                                    @TabName(tab)
+                                </MudNavLink>
+                            }
+                        }
+                    </MudNavMenu>
+                </MudPaper>
+            </MudHidden>
+
+
+            <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                <MudIconButton Icon="@Icons.Material.Filled.MenuOpen"
+                               Color="Color.Dark"
+                               OnClick="@(() => _drawerOpen = true)" />
+            </MudHidden>
+        </MudItem>
+        <MudItem xs="12" md="9">
+                <MudItem Class=" position-relative">
+                    @if (isOrderDetailView)
+                    {
+                        <ListOrderDetail OrderId="@orderId" />
+                    }
+                    else
+                    {
+                        @switch (activeTab)
+                        {
+                            case ProfileTab.Info:
+                                <ProfileInfo UserProfile="_userProfile" OnSave="SaveProfile" />
+                                break;
+                            case ProfileTab.Orders:
+                                <ListOrder />
+                                break;
+                            case ProfileTab.Favorite:
+                                // ...
+                                break;
+                            case ProfileTab.Address:
+                                <AddressBook />
+                                break;
+                            case ProfileTab.ChangePassword:
+                                <ChangePassword />
+                                break;
+                        }
+                    }
+                </MudItem>
+            
+        </MudItem>
+
+
+        </MudGrid>
+        <MudDrawer @bind-Open="_drawerOpen"
+                   Anchor="Anchor.Bottom"
+                   Elevation="2"
+                   Variant="DrawerVariant.Temporary"
+                   Class="mud-width-200">
+            <MudDrawerHeader>
+                <MudText Typo="Typo.h6" Class="ml-2">Menu cá nhân</MudText>
+            </MudDrawerHeader>
+            <MudDivider />
+
+            <MudNavMenu Bordered="false">
+                @foreach (var tab in Enum.GetValues<ProfileTab>())
+                {
+
+                    if (tab == ProfileTab.Logout)
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.Logout"
+                                    IconColor="Color.Inherit"
+                                    Class="text-error font-weight-bold"
+                                    Style="@($"color:{Colors.Red.Lighten1};")"
+                                    OnClick="@(() => SetTab(tab))">
+                            @TabName(tab)
+                        </MudNavLink>
+                    }
+                    else
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.ChevronRight"
+                                    OnClick="@(() => SetTab(tab))">@TabName(tab)</MudNavLink>
+                    }
+                }
+            </MudNavMenu>
+        </MudDrawer>
+    }
+    </MudContainer>
+
+    
+
+@code {
+    private bool _drawerOpen = false;
+    private CustomerUpdateDTO _userProfile = new();
+    private string _userName = "";
+    private bool initialLoading = false;
+    private bool _loading = false; 
+    [Parameter] public string? orderId { get; set; }
+    private List<BreadcrumbItem> _items = new();
+    private bool isOrderDetailView = false;
+    private ProfileTab activeTab = ProfileTab.Info;
+    enum ProfileTab
+    {
+        Info,
+        Favorite,
+        Orders,
+        Address,
+        ChangePassword,
+        Logout
+    }
+    protected override void OnInitialized()
+    {
+        NavManager.LocationChanged += OnLocationChanged;
+        SetActiveTabFromUrl(); 
+    }
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        SetActiveTabFromUrl();
+        StateHasChanged(); 
+    }
+    public void Dispose()
+    {
+        NavManager.LocationChanged -= OnLocationChanged;
+    }
+    private void SetActiveTabFromUrl()
+    {
+        var uri = NavManager.ToBaseRelativePath(NavManager.Uri).ToLower();
+        var segments = uri.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        if (segments.Length >= 2 && segments[0] == "profile")
+        {
+            if (segments[1] == "orders")
+            {
+                isOrderDetailView = segments.Length == 3;
+                if (isOrderDetailView)
+                    orderId = segments[2];
+                else
+                    activeTab = ProfileTab.Orders;
+            }
+            else
+            {
+                isOrderDetailView = false;
+                activeTab = segments[1] switch
+                {
+                    "info" => ProfileTab.Info,
+                    "favorite" => ProfileTab.Favorite,
+                    "address" => ProfileTab.Address,
+                    "change-password" => ProfileTab.ChangePassword,
+                    _ => ProfileTab.Info
+                };
+            }
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadUserProfileAsync();
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Thông tin cá nhân", href: "/profile", icon: Icons.Material.Filled.List)
+        };
+    }
+
+
+    private async Task LoadUserProfileAsync()
+    {
+        initialLoading = true;
+        StateHasChanged();
+
+        var idTask = TokenService.GetUserIdAsync();
+        var nameTask = TokenService.GetUserNameAsync();
+
+        await Task.WhenAll(idTask, nameTask);
+
+        var userId = idTask.Result;
+        _userName = nameTask.Result;
+        if (string.IsNullOrEmpty(userId))
+        {
+            Snackbar.Add("Không tìm thấy ID người dùng.", Severity.Warning);
+            NavManager.NavigateTo("/");
+            return;
+        }
+
+        var response = await AdminService.GetUsersAsync(userId: userId);
+
+        if (response?.IsSuccess == true && response.Data?.Any() == true)
+        {
+            var profile = response.Data.First();
+            _userProfile = new CustomerUpdateDTO
+            {
+                FullName = profile.FullName,
+                PhoneNumber = profile.UserPhone,
+                BirthDate = profile.BirthDate,
+                Gender = profile.Gender,
+                Email = profile.UserEmail,
+                Avatar = profile.Avatar
+            };
+        }
+        else
+        {
+            Snackbar.Add("Không thể tải thông tin người dùng.", Severity.Error);
+        }
+
+        initialLoading = false;
+        StateHasChanged();
+    }
+
+
+
+
+    private async Task SaveProfile()
+    {
+        var result = await AdminService.UpdateOwnProfileAsync(_userProfile);
+        if (result.IsSuccess)
+            Snackbar.Add(result.Message, Severity.Success);
+        else
+            Snackbar.Add(result.Message, Severity.Error);
+    }
+
+
+
+    private string TabName(ProfileTab tab) => tab switch
+    {
+        ProfileTab.Info => "Thông tin cá nhân",
+        ProfileTab.Favorite => "Danh sách yêu thích",
+        ProfileTab.Orders => "Lịch sử mua hàng",
+        ProfileTab.Address => "Sổ địa chỉ",
+        ProfileTab.ChangePassword => "Đổi mật khẩu",
+        ProfileTab.Logout => "Đăng xuất",
+        _ => ""
+    };
+
+    private async Task SetTab(ProfileTab tab)
+    {
+        if (tab == ProfileTab.Logout)
+        {
+            await Logout();
+            return;
+        }
+        _loading = true;
+        StateHasChanged();
+
+        activeTab = tab;
+        var delayTask = Task.Delay(500);
+        var navTask = Task.Run(() =>
+            NavManager.NavigateTo($"/profile/{TabUrl(tab)}", forceLoad: false)
+        );
+
+        await Task.WhenAll(delayTask, navTask);
+        _loading = false;
+        _drawerOpen = false;
+        StateHasChanged();
+    }
+
+
+    private string TabUrl(ProfileTab tab) => tab switch
+    {
+        ProfileTab.Info => "info",
+        ProfileTab.Favorite => "favorite",
+        ProfileTab.Orders => "orders",
+        ProfileTab.Address => "address",
+        ProfileTab.ChangePassword => "change-password",
+        _ => "info"
+    };
+    private async Task Logout()
+    {
+        await TokenService.RemoveTokenAsync();
+        AuthProvider.MarkUserAsLoggedOut();
+        CartState.SetItems(new List<CartDetailViewModel>());
+        StateHasChanged();
+        await Task.Delay(400);
+        NavManager.NavigateTo("/login");
+    }
+
+}
+

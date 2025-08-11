@@ -1,24 +1,130 @@
-﻿<MudPaper Width="250px" Elevation="0" Class="py-3">
+﻿@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.Auth
+@inject CustomAuthProvider AuthProvider
+@inject ITokenService TokenService
+@inject NavigationManager NavManager
+
+<MudPaper Width="250px" Elevation="0" Class="py-3">
     <MudNavMenu Color="Color.Info">
-        <MudNavLink Typo="Typo.h2" Href="/list-category" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Category">Quản Lý Danh Mục</MudNavLink>
-        <MudNavGroup Title="Quản Lý Sản Phẩm" Expanded="true" Icon="@Icons.Material.Filled.ListAlt">
-            <MudNavLink Href="/list-product-admin" Match="NavLinkMatch.Prefix">Danh Sách Sản Phẩm</MudNavLink>
-        </MudNavGroup>
-        <MudNavGroup Title="Quản Lý Hóa Đơn" Expanded="true">
-            <MudNavLink Href="/users" Match="NavLinkMatch.Prefix">Danh Sách Hóa Đơn</MudNavLink>
-            <MudNavLink Href="/create-order" Match="NavLinkMatch.Prefix">Tạo Hóa Đơn</MudNavLink>
-        </MudNavGroup>
-        <MudNavGroup Title="Thuộc Tính Sản Phẩm" Expanded="true">
-            <MudNavLink Href="/list-color" Match="NavLinkMatch.Prefix">Danh Sách Màu</MudNavLink>
-            <MudNavLink Href="/list-fabric" Match="NavLinkMatch.Prefix">Danh Sách Chất Liệu</MudNavLink>
-            <MudNavLink Href="/list-size" Match="NavLinkMatch.Prefix">Danh Sách Kích Cở</MudNavLink>
-        </MudNavGroup>
-        <MudNavGroup Title="Quản Lý Người Dùng" Expanded="true" Icon="@Icons.Material.Filled.ListAlt">
-            <MudNavLink Href="/list-user" Match="NavLinkMatch.Prefix">Danh Sách Người Dùng</MudNavLink>
-        </MudNavGroup>
-        <MudNavGroup Title="Quản Lý Chi Nhánh" Expanded="true" Icon="@Icons.Material.Filled.ListAlt">
-            <MudNavLink Href="/list-branches" Match="NavLinkMatch.Prefix">Danh Sách Chi Nhánh</MudNavLink>
-            <MudNavLink Href="/branch-products" Match="NavLinkMatch.Prefix">Sản Phẩm Chi Nhánh</MudNavLink>
-        </MudNavGroup>
+        @if (role == "Admin" || role == "RevenueManager")
+        {
+            <MudNavGroup Title="Quản Lý Thống Kê" Expanded="true" Icon="@Icons.Material.Filled.InsertChartOutlined">
+                <MudNavLink Href="/statistic-chart" Match="NavLinkMatch.Prefix">Thống Kê</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Danh Mục" Expanded="true" Icon="@Icons.Material.Filled.Category">
+                <MudNavLink Href="/list-category" Match="NavLinkMatch.Prefix">Danh Sách Danh Mục</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title=" Quản Lý Bộ Sưu Tập" Expanded="true" Icon="@Icons.Material.Filled.CollectionsBookmark">
+                <MudNavLink Href="/list-collections" Match="NavLinkMatch.Prefix">Danh Sách Bộ Sưu Tập</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Sản Phẩm" Expanded="true" Icon="@Icons.Material.Filled.ListAlt">
+                <MudNavLink Href="/list-product-admin" Match="NavLinkMatch.Prefix">Danh Sách Sản Phẩm</MudNavLink>
+            </MudNavGroup>
+
+            <MudNavGroup Title="Quản Lý Hóa Đơn" Expanded="true" Icon="@Icons.Material.Filled.LocalPrintshop">
+                <MudNavLink Href="/list-order" Match="NavLinkMatch.Prefix">Danh Sách Hóa Đơn</MudNavLink>
+                <MudNavLink Href="/create-order" Match="NavLinkMatch.Prefix">Tạo Hóa Đơn</MudNavLink>
+            </MudNavGroup>
+
+            <MudNavGroup Title="Thuộc Tính Sản Phẩm" Expanded="true" Icon="@Icons.Material.Filled.Details">
+                <MudNavLink Href="/list-color" Match="NavLinkMatch.Prefix">Danh Sách Màu</MudNavLink>
+                <MudNavLink Href="/list-fabric" Match="NavLinkMatch.Prefix">Danh Sách Chất Liệu</MudNavLink>
+                <MudNavLink Href="/list-size" Match="NavLinkMatch.Prefix">Danh Sách Kích Cở</MudNavLink>
+            </MudNavGroup>
+
+            <MudNavGroup Title="Quản Lý Người Dùng" Expanded="true" Icon="@Icons.Material.Filled.GroupAdd">
+                <MudNavLink Href="/list-user" Match="NavLinkMatch.Prefix">Danh Sách Người Dùng</MudNavLink>
+            </MudNavGroup>
+
+            <MudNavGroup Title="Quản Lý Chi Nhánh" Expanded="true" Icon="@Icons.Material.Filled.MapsHomeWork">
+                <MudNavLink Href="/list-branches" Match="NavLinkMatch.Prefix">Danh Sách Chi Nhánh</MudNavLink>
+                <MudNavLink Href="/san-pham" Match="NavLinkMatch.Prefix">Sản Phẩm Chi Nhánh</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Phiếu Nhập-Xuất" Expanded="true" Icon="@Icons.Material.Filled.LibraryBooks">
+                <MudNavLink Href="/list-input-receipts" Match="NavLinkMatch.Prefix">Danh Sách Phiếu Nhập</MudNavLink>
+                <MudNavLink Href="/list-output-receipts" Match="NavLinkMatch.Prefix">Danh Sách Phiếu Xuất</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Kho Hàng" Expanded="true" Icon="@Icons.Material.Filled.Home">
+                <MudNavLink Href="/list-storage" Match="NavLinkMatch.Prefix">Danh Sách Kho Hàng</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Giảm Giá" Expanded="true" Icon="@Icons.Material.Filled.Discount">
+                <MudNavLink Href="/list-discount-price" Match="NavLinkMatch.Prefix">Danh Sách Giảm Giá</MudNavLink>
+            </MudNavGroup>
+            <MudNavLink onclick="Logout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Đăng Xuất</MudNavLink>
+        }
+        else if (role == "BranchManager")
+        {
+            <MudNavGroup Title="Quản Lý Chi Nhánh" Expanded="true">
+                <MudNavLink Href="/san-pham" Match="NavLinkMatch.Prefix">Sản Phẩm Chi Nhánh</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Người Dùng" Expanded="true" Icon="@Icons.Material.Filled.ListAlt">
+                <MudNavLink Href="/list-user" Match="NavLinkMatch.Prefix">Danh Sách Người Dùng</MudNavLink>
+            </MudNavGroup>
+
+            <MudNavGroup Title="Quản Lý Hóa Đơn" Expanded="true">
+                <MudNavLink Href="/list-order" Match="NavLinkMatch.Prefix">Hóa Đơn Chi Nhánh</MudNavLink>
+                <MudNavLink Href="/create-order" Match="NavLinkMatch.Prefix">Tạo Hóa Đơn</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Thống Kê" Expanded="true" Icon="@Icons.Material.Filled.InsertChartOutlined">
+                <MudNavLink Href="/statistic-chart" Match="NavLinkMatch.Prefix">Thống Kê</MudNavLink>
+            </MudNavGroup>
+            <MudNavLink onclick="Logout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Đăng Xuất</MudNavLink>
+
+        }
+        else if (role == "WarehouseManager")
+        {
+            <MudNavGroup Title="Quản Lý Danh Mục" Expanded="true" Icon="@Icons.Material.Filled.Category">
+                <MudNavLink Href="/list-category" Match="NavLinkMatch.Prefix">Danh Sách Danh Mục</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Phiếu Nhập-Xuất" Expanded="true" Icon="@Icons.Material.Filled.LibraryBooks">
+                <MudNavLink Href="/list-input-receipts" Match="NavLinkMatch.Prefix">Danh Sách Phiếu Nhập</MudNavLink>
+                <MudNavLink Href="/list-output-receipts" Match="NavLinkMatch.Prefix">Danh Sách Phiếu Xuất</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Kho Hàng" Expanded="true" Icon="@Icons.Material.Filled.Home">
+                <MudNavLink Href="/list-storage" Match="NavLinkMatch.Prefix">Danh Sách Kho Hàng</MudNavLink>
+            </MudNavGroup>
+            <MudNavLink onclick="Logout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Đăng Xuất</MudNavLink>
+
+        }
+        else if (role == "BranchEmployee")
+        {
+            <MudNavGroup Title="Quản Lý Chi Nhánh" Expanded="true">
+                <MudNavLink Href="/san-pham" Match="NavLinkMatch.Prefix">Sản Phẩm Chi Nhánh</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Title="Quản Lý Người Dùng" Expanded="true" Icon="@Icons.Material.Filled.ListAlt">
+                <MudNavLink Href="/list-user" Match="NavLinkMatch.Prefix">Danh Sách Người Dùng</MudNavLink>
+            </MudNavGroup>
+
+            <MudNavGroup Title="Quản Lý Hóa Đơn" Expanded="true">
+                <MudNavLink Href="/list-order" Match="NavLinkMatch.Prefix">Hóa Đơn Chi Nhánh</MudNavLink>
+                <MudNavLink Href="/create-order" Match="NavLinkMatch.Prefix">Tạo Hóa Đơn</MudNavLink>
+            </MudNavGroup>
+            <MudNavLink onclick="Logout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Đăng Xuất</MudNavLink>
+
+        }
+        else if (role == "Shipper")
+        {
+            <MudNavGroup Title="Quản Lý Hóa Đơn" Expanded="true">
+                <MudNavLink Href="/list-order" Match="NavLinkMatch.Prefix">Hóa Đơn Chi Nhánh</MudNavLink>
+            </MudNavGroup>
+            <MudNavLink onclick="Logout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Đăng Xuất</MudNavLink>
+
+        }
     </MudNavMenu>
 </MudPaper>
+@code {
+    private string? role;
+
+    protected override async Task OnInitializedAsync()
+    {
+        role = await TokenService.GetRoleAsync(); 
+    }
+
+    private async Task Logout()
+    {
+        await TokenService.RemoveTokenAsync();
+        AuthProvider.MarkUserAsLoggedOut();
+        await Task.Delay(400);
+        NavManager.NavigateTo("/login");
+    }
+}

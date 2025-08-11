@@ -1,13 +1,15 @@
 ﻿@page "/list-branches"
 
+@using MenShopBlazor.Shared
 @using MenShopBlazor.Services.Branch
 @using MenShopBlazor.DTOs.Branch
-@using MenShopBlazor.Shared
 @inject IBranchService BranchService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavManager
-
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
 
     <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
@@ -30,7 +32,7 @@
                 <Columns>
                     <PropertyColumn Property="x => x.BranchId" Title="MÃ CHI NHÁNH" Editable="false" />
                     <PropertyColumn Property="x => x.Name" Title="TÊN CHI NHÁNH" />
-                    <PropertyColumn Property="x => x.Address" Title="ĐỊA CHỈ" />
+                    <PropertyColumn Property="x => x.Address.FullAddress" Title="ĐỊA CHỈ" />
                     <PropertyColumn Property="x => x.ManagerName" Title="NGƯỜI QUẢN LÍ" />
                     <PropertyColumn Property="x => x.IsOnline" Title="LOẠI">
                         <CellTemplate>
@@ -93,7 +95,7 @@
     {
         _items = new()
     {
-        new BreadcrumbItem("Trang chủ", href: "/home", icon: Icons.Material.Filled.Home),
+        new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
         new BreadcrumbItem("Danh sách chi nhánh", href: "/list-branches", icon: Icons.Material.Filled.List)
     };
 
@@ -180,6 +182,6 @@
     }
     private void NavigateToBranchProducts(int branchId)
     {
-        NavManager.NavigateTo($"/branch-products/{branchId}");
+        NavManager.NavigateTo($"/san-pham/{branchId}");
     }
 }

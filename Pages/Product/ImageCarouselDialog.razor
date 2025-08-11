@@ -7,6 +7,10 @@
 @inject IProductService ProductService
 @inject IUpImg ImageService
 @inject IDialogService DialogService
+@attribute [Authorize(Roles = "Admin, RevenueManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
 
 <MudDialog>
     <DialogContent>
@@ -20,7 +24,7 @@
             @foreach (var img in Images)
             {
                 <MudCarouselItem>
-                    <div style="position: relative; width: 100%; height: 100%;">
+                    <div class="position-relative w-100 h-100">
                         <img src="@img.FullPath"
                         class="w-100 h-100 object-fit-contain" />
                         <MudTooltip Text="Xóa ảnh" Arrow="true" Placement="Placement.Top">

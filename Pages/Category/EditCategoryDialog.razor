@@ -3,7 +3,9 @@
 @using MenShopBlazor.Services.Category;
 @using MenShopBlazor.DTOs.Category;
 @inject ISnackbar Snackbar
-
+@attribute [Authorize(Roles = "Admin, RevenueManager, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
 
 <MudDialog>
     <TitleContent>

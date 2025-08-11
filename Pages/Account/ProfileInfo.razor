@@ -1,0 +1,30 @@
+﻿@using MenShopBlazor.DTOs.Account
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h5" GutterBottom>Thông tin cá nhân</MudText>
+
+    <MudTextField Margin="Margin.Dense" Class="mb-2" Variant="Variant.Outlined" T="string" Label="Họ tên" @bind-Value="UserProfile.FullName" />
+    <MudTextField Margin="Margin.Dense" Class="mb-2" Variant="Variant.Outlined" T="string" Label="Số điện thoại" @bind-Value="UserProfile.PhoneNumber" />
+    <MudDatePicker Margin="Margin.Dense" Class="mb-2" Variant="Variant.Outlined" Label="Ngày sinh" @bind-Date="UserProfile.BirthDate" />
+
+    <MudText Class="mt-2 mb-1">Giới tính:</MudText>
+    <MudRadioGroup T="bool?" @bind-Value="UserProfile.Gender">
+        <MudRadio T="bool?" Value="true" Label="Nam" />
+        <MudRadio T="bool?" Value="false" Label="Nữ" />
+    </MudRadioGroup>
+
+    <MudTextField Margin="Margin.Dense" Class="mt-3 mb-4" Variant="Variant.Outlined" T="string" Label="Email" @bind-Value="UserProfile.Email" />
+    <MudTextField @bind-Value="UserProfile.CurrentPassword" Label="Mật khẩu hiện tại" InputType="InputType.Password" Margin="Margin.Dense" Variant="Variant.Outlined" />
+    <MudTextField @bind-Value="UserProfile.NewPassword" Label="Mật khẩu mới" InputType="InputType.Password" Margin="Margin.Dense" Variant="Variant.Outlined" />
+
+    <MudButton OnClick="@(() => OnSave.InvokeAsync())" Color="Color.Primary" Variant="Variant.Filled">
+        Lưu thay đổi
+    </MudButton>
+</MudPaper>
+
+
+
+@code {
+    [Parameter] public CustomerUpdateDTO? UserProfile { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+}

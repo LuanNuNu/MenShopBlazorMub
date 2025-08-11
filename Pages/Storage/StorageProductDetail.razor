@@ -1,0 +1,62 @@
+﻿@page "/storage-product/{storageId:int}/ProductDetail/{productId:int}"
+
+@using MenShopBlazor.DTOs.Storage
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.Services.Storage
+@inject IStorageService StorageService
+@using MudBlazor
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+        <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+        <MudGrid>
+            <MudItem xs="12">
+                @if (!_loading)
+                {
+                    <MudDataGrid T="ProductDetailViewModel"
+                    Items="@productDetails"
+                                 RowsPerPage="8"
+                                 Dense="true"
+                                 Filterable="true"
+                                 FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                        <Columns>
+                            <PropertyColumn Property="x => x.ProductName" Title="Tên sản phẩm" />
+                            <PropertyColumn Property="x => x.SizeName" Title="Kích cỡ" />
+                            <PropertyColumn Property="x => x.ColorName" Title="Màu sắc" />
+                            <PropertyColumn Property="x => x.FabricName" Title="Chất liệu" />
+                            <PropertyColumn Property="x => x.Quantity" Title="Số lượng" />
+                            <PropertyColumn Property="x => x.SellPrice" Title="Giá bán" />
+                        </Columns>
+
+                        <PagerContent>
+                            <MudDataGridPager T="ProductDetailViewModel" />
+                        </PagerContent>
+                    </MudDataGrid>
+                }
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+}
+
+@code {
+    [Parameter] public int productId { get; set; }
+    [Parameter] public int storageId { get; set; }
+    private IEnumerable<ProductDetailViewModel> productDetails = new List<ProductDetailViewModel>();
+    private List<BreadcrumbItem> _items = new();
+    private bool _loading = false;
+    protected override async Task OnInitializedAsync()
+    {
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Kho Hàng", href: "/list-storage", icon: Icons.Material.Filled.List),
+            new BreadcrumbItem($"Sản phẩm kho hàng", href: $"/storage-product/{storageId}", icon: Icons.Material.Filled.List),
+            new BreadcrumbItem($"Chi tiết sản phẩm kho hàng", href: null, disabled: true, icon: Icons.Material.Filled.List),
+        };
+        productDetails = await StorageService.GetByProductDetailId(productId);
+
+    }
+}

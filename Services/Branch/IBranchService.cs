@@ -12,7 +12,8 @@ namespace MenShopBlazor.Services.Branch
         Task<ApiResponseModel<BranchViewModel>> CreateBranchAsync(CreateUpdateBranchDTO dto);
         Task<ApiResponseModel<BranchViewModel>> UpdateBranchAsync(int branchId, CreateUpdateBranchDTO dto);
         Task<ApiResponseModel<List<BranchProductModel>>> GetBranchProduct(int? branchId, int? categoryId = null);
-        Task<ApiResponseModel<List<BranchProductDetailModel>>> GetBranchProductDetail(int? branchId, int productId);
+        Task<ApiResponseModel<List<BranchProductDetailModel>>> GetBranchProductDetailbyProductId(int? branchId, int productId);
+        Task<ApiResponseModel<BranchProductDetailModel>> GetBranchProductDetailAsync(int branchId, int productDetailId);
         Task<ApiResponseModel<object>> DeleteBranchlAsync(int branchId);
 
     }

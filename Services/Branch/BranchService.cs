@@ -89,7 +89,7 @@ namespace MenShopBlazor.Services.Branch
 
 
 
-        public async Task<ApiResponseModel<List<BranchProductDetailModel>>> GetBranchProductDetail(int? branchId, int productId)
+        public async Task<ApiResponseModel<List<BranchProductDetailModel>>> GetBranchProductDetailbyProductId(int? branchId, int productId)
         {
             string query = branchId.HasValue ? $"?branchId={branchId}" : "";
 
@@ -97,6 +97,15 @@ namespace MenShopBlazor.Services.Branch
                 _httpClient.GetAsync($"{baseUrl}/products/{productId}{query}")
             );
         }
+        public async Task<ApiResponseModel<BranchProductDetailModel>> GetBranchProductDetailAsync(int branchId, int productDetailId)
+        {
+            var url = $"{baseUrl}/productDetails/{productDetailId}?branchId={branchId}";
+            return await HttpHelper.SendRequestAsync<BranchProductDetailModel>(() =>
+                _httpClient.GetAsync(url)
+            );
+        }
+
+
         public async Task<ApiResponseModel<object>> DeleteBranchlAsync(int branchId)
         {
             return await HttpHelper.SendRequestAsync<object>(() =>

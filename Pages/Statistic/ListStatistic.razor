@@ -1,0 +1,319 @@
+﻿@page "/statistic-chart"
+
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.DTOs.Statistic
+@using MenShopBlazor.Services.Statistic
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Services.Branch
+@using MenShopBlazor.Extensions
+@inject IStatisticService StatisticService
+@inject IBranchService BranchService
+@inject ITokenService TokenService
+@inject IAdminService AdminService
+@attribute [Authorize(Roles = "Admin, RevenueManager, WarehouseManager, BranchManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+
+<PageTitle>Thống kê</PageTitle>
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+@if (!_loading)
+{
+<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudGrid>
+            <MudItem xs="12">
+                <MudGrid>
+                    <MudItem xs="8">
+                        @if (role != "BranchManager")
+                        {
+                            <MudSelect T="int?" Label="Chi nhánh"
+                                       Value="@_selectedBranch"
+                                       Variant="Variant.Text"
+                                       ValueChanged="async (value) => { _selectedBranch = value; await LoadStatistics(); }"
+                                       Dense="true">
+
+                                <MudSelectItem T="int?" Value="@((int?)null)">Tất cả chi nhánh</MudSelectItem>
+                                @foreach (var branch in _branches)
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)branch.BranchId)">@branch.Name @branch.BranchId</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudTextField @bind-Value="_branch.Name" Label="Chi nhánh" ReadOnly="true" Variant="Variant.Text" />
+                        }
+                    </MudItem>
+
+                    <MudItem xs="4">
+                        <MudPaper Class="pa-4">
+                            <MudText Typo="Typo.h6">TỔNG SỐ ĐƠN HÀNG HÔM NAY</MudText>
+                            <MudText Typo="Typo.h3" Align="Align.Center" Class="mt-3">@_totalOrdersByDay</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+
+        <!-- Cột trái: 3 biểu đồ -->
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4">
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                    <!-- Chọn loại thống kê -->
+                    <MudSelect T="StatisticMode" Label="Thống kê theo"
+                               Value="@_selectedType"
+                               ValueChanged="async (value) => { _selectedType = value; await LoadStatistics(); }"
+                               Dense="true">
+                        <MudSelectItem Value="StatisticMode.Day">Ngày</MudSelectItem>
+                        <MudSelectItem Value="StatisticMode.Month">Tháng</MudSelectItem>
+                        <MudSelectItem Value="StatisticMode.Year">Năm</MudSelectItem>
+                    </MudSelect>
+
+                    <!-- Chọn thời gian -->
+                    @switch (_selectedType)
+                    {
+                        case StatisticMode.Day:
+                            <MudDatePicker Label="Chọn ngày"
+                                           OpenTo="OpenTo.Year"
+                                           FixDay="1"
+                                           DateFormat="yyyy/MM"
+                                           Date="@_selectedDate"
+                                           DateChanged="async (value) => { _selectedDate = value; await LoadStatistics(); }" />
+                            break;
+                        case StatisticMode.Month:
+                            <MudDatePicker Picker="PickerType.Month"
+                                           OpenTo="OpenTo.Year"
+                                           FixMonth="@DateTime.Today.Month"
+                                           FixDay="@DateTime.Today.Day"
+                                           DateFormat="yyyy"
+                                           Label="Chọn tháng"
+                                           Date="@_selectedDate"
+                                           DateChanged="async (value) => { _selectedDate = value; await LoadStatistics(); }" />
+                            break;
+                        case StatisticMode.Year:
+                            <MudDatePicker Picker="PickerType.Year"
+                                           Disabled="true"
+                                           OpenTo="OpenTo.Year"
+                                           FixMonth="@DateTime.Today.Month"
+                                           FixDay="@DateTime.Today.Day"
+                                           DateFormat="yyyy"
+                                           Label="Chọn năm"
+                                           Date="@_selectedDate"
+                                           DateChanged="async (value) => { _selectedDate = value; await LoadStatistics(); }" />
+                            break;
+                    }
+                </MudStack>
+
+                <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+                    <MudTabPanel Text="Biểu đồ doanh thu">
+                        <MudText Typo="Typo.h6" Class="mt-4">Doanh thu</MudText>
+                        <MudChart ChartType="MudBlazor.ChartType.Line" ChartOptions="_chartRevenueOption"
+                                  XAxisLabels="_chartLabels" ChartSeries="_revenueSeries" Class="mb-4" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Biểu đồ sản phẩm">
+                        <MudText Typo="Typo.h6" Class="mt-4">Sản phẩm bán</MudText>
+                        <MudChart ChartType="MudBlazor.ChartType.Line" ChartOptions="_chartProductOption"
+                                  XAxisLabels="_chartLabels" ChartSeries="_productSeries" Class="mb-4" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Biểu đồ đơn hàng">
+                        <MudText Typo="Typo.h6" Class="mt-4">Đơn hàng</MudText>
+                        <MudChart ChartType="MudBlazor.ChartType.Line" ChartOptions="_chartOrderOption"
+                                  XAxisLabels="_chartLabels" ChartSeries="_orderSeries" />
+                    </MudTabPanel>
+                </MudTabs>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Cột phải: Top sản phẩm và Top khách hàng -->
+        <MudItem xs="12" md="4">
+                <MudPaper Class="pa-4 mb-4">
+
+                    @if (role == "Admin" || role == "RevenueManager")
+                    {
+                        <MudText Typo="Typo.h6">TOP SẢN PHẨM BÁN CHẠY</MudText>
+                        <MudTable Items="_topProducts" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Sản phẩm</MudTh>
+                                <MudTh>Số lượng</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Sản phẩm">@context.ProductName</MudTd>
+                                <MudTd DataLabel="Số lượng">@context.TotalQuantity</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else if (role == "BranchManager")
+                    {
+                        <MudText Typo="Typo.h6">TOP SẢN PHẨM BÁN CHẠY TRONG NGÀY</MudText>
+                        <MudTable Items="_topProductsByDay" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Sản phẩm</MudTh>
+                                <MudTh>Số lượng</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Sản phẩm">@context.ProductName</MudTd>
+                                <MudTd DataLabel="Số lượng">@context.TotalQuantity</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+
+
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">TOP KHÁCH HÀNG TIỀM NĂNG</MudText>
+                <MudTable Items="_topCustomers" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Khách hàng</MudTh>
+                        <MudTh>Tổng chi tiêu</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Khách hàng">@context.CustomerName</MudTd>
+                        <MudTd DataLabel="Tổng chi tiêu">@context.TotalSpent.ToString("N0")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+}
+@code {
+    private List<BranchViewModel> _branches = new();
+    private BranchViewModel _branch = new();
+    private StatisticMode _selectedType = StatisticMode.Month;
+    private int? _selectedBranch;
+    private DateTime? _selectedDate = DateTime.Today;
+
+    private string[] _chartLabels = Array.Empty<string>();
+    private ChartOptions _chartRevenueOption = new ChartOptions { YAxisTicks = 1000000, LineStrokeWidth = 5, YAxisLines = true };
+    private ChartOptions _chartProductOption = new ChartOptions { LineStrokeWidth = 5, YAxisLines = true };
+    private ChartOptions _chartOrderOption = new ChartOptions { YAxisLines = true, LineStrokeWidth = 5 };
+
+    private List<ChartSeries> _revenueSeries = new();
+    private List<ChartSeries> _productSeries = new();
+    private List<ChartSeries> _orderSeries = new();
+    private List<TopProductDto> _topProducts = new();
+    private List<TopCustomerDto> _topCustomers = new();
+    private string? role;
+    private int? BranchId;
+    private bool _loading = false;
+    private List<TopBestSellingProductDto> _topProductsByDay = new();
+    private int _totalOrdersByDay = 0;
+    private DateTime? _selectedDateForDay = DateTime.Today;
+
+    private async Task GetCurrentBranchId()
+    {
+        var userResponse = await AdminService.GetCurrentUserAsync();
+        if (userResponse?.IsSuccess == true)
+        {
+            BranchId = userResponse.Data?.BranchId;
+
+        }
+        else
+        {
+            BranchId = null;
+        }
+    }
+        private async Task LoadBranches()
+        {
+            if (role == "BranchManager" || role == "BranchEmployee")
+            {
+                var response = await BranchService.GetBranchByIdAsync(BranchId ?? 0);
+                if (response.IsSuccess)
+                {
+                    _branch = response.Data ?? new BranchViewModel();
+                    _branches = new List<BranchViewModel> { _branch };
+                    _selectedBranch = _branch.BranchId; 
+                }
+            }
+            else
+            {
+                var res = await BranchService.GetAllBranchesAsync();
+                if (res?.IsSuccess == true && res.Data != null)
+                {
+                    _branches = res.Data;
+                    _selectedBranch = null; 
+                }
+            }
+        }
+    
+
+        private bool IsBranchOnline(int branchId)
+          => _branches.FirstOrDefault(b => b.BranchId == branchId)?.IsOnline ?? false;
+
+    private async Task LoadStatistics()
+    {
+        int? branchToQuery = null;
+
+        if (role == "BranchManager")
+        {
+            branchToQuery = _selectedBranch;
+            if (branchToQuery == null)
+            {
+                _totalOrdersByDay = 0;
+                _topProductsByDay = new();
+                return;
+            }
+        }
+        else
+        {
+            if (_selectedBranch.HasValue)
+            {
+                branchToQuery = _selectedBranch;
+            }
+            else
+            {
+                branchToQuery = null;
+            }
+        }
+
+        var year = _selectedDate?.Year;
+        var month = _selectedType == StatisticMode.Day ? _selectedDate?.Month : null;
+
+        var res = await StatisticService.GetDynamicStatisticsAsync(_selectedType, year, month, branchToQuery);
+        if (res != null)
+        {
+            _chartLabels = res.Select(s => s.Label).ToArray();
+            _revenueSeries = new() { new ChartSeries { Name = "Doanh thu", Data = res.Select(s => (double)s.Revenue).ToArray() } };
+            _productSeries = new() { new ChartSeries { Name = "Sản phẩm", Data = res.Select(s => (double)s.ProductSold).ToArray() } };
+            _orderSeries = new() { new ChartSeries { Name = "Đơn hàng", Data = res.Select(s => (double)s.OrderCount).ToArray() } };
+        }
+
+        _topProducts = await StatisticService.GetTopProductsAsync() ?? new();
+        _topCustomers = await StatisticService.GetTopCustomersAsync() ?? new();
+
+        if (_selectedDateForDay.HasValue)
+        {
+            _topProductsByDay = await StatisticService.GetTopBestSellingProductsByDayAsync(_selectedDateForDay.Value, 5, branchToQuery) ?? new();
+            _totalOrdersByDay = await StatisticService.GetTotalOrdersByDayAsync(_selectedDateForDay.Value, branchToQuery);
+        }
+        else
+        {
+            _topProductsByDay = new();
+            _totalOrdersByDay = 0;
+        }
+    }
+
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        StateHasChanged(); 
+
+        role = await TokenService.GetRoleAsync();
+        var userResponse = await AdminService.GetCurrentUserAsync();
+        if (userResponse?.IsSuccess == true)
+            BranchId = userResponse.Data?.BranchId;
+
+        await LoadBranches();
+        await LoadStatistics();
+
+        _loading = false;
+        StateHasChanged(); 
+    }
+}
+
+

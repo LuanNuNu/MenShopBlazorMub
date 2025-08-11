@@ -1,0 +1,322 @@
+﻿@page "/create-output"
+
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Receipt.CreateReceipt
+@using MenShopBlazor.DTOs.Storage
+@using MenShopBlazor.Services.Branch
+@using MenShopBlazor.Services.Storage
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.OutputReceiptService
+@using MenShopBlazor.Services.Product
+@using MenShopBlazor.Shared.Wrapper
+@inject IProductService productService
+@inject IStorageService StorageService
+@inject ITokenService TokenService
+@inject IBranchService branchService
+@inject IOutputReceiptService outputReceiptService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6" GutterBottom="true">
+            Tạo phiếu xuất kho
+        </MudText>
+
+        <EditForm Model="@ReceiptLines">
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Label="Chi nhánh" Margin="Margin.Dense"
+                               Variant="Variant.Outlined"
+                               @bind-Value="SelectedBranchId"
+                               Required="true"
+                               Class="w-100">
+                        @foreach (var branch in Branches)
+                        {
+                            <MudSelectItem Value="@(branch.BranchId as int?)">@branch.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Label="Kho" Margin="Margin.Dense"
+                               Variant="Variant.Outlined"
+                               Value="SelectedStorageId"
+                               ValueChanged="OnStorageChanged"
+                               Required="true"
+                               Disabled="@(!Storages.Any())"
+                               Class="w-100">
+                        @foreach (var storage in Storages)
+                        {
+                            <MudSelectItem Value="@(storage.StorageId as int?)">@storage.CategoryName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+
+
+            @foreach (var item in ReceiptLines)
+            {
+                <MudPaper Class="mt-4 p-3" Elevation="2">
+                    <MudGrid>
+                        <MudItem xs="12" sm="3">
+                            <MudSelect T="int?" Label="Sản phẩm"
+                                       Value="item.ProductId"
+                                       ValueChanged="@(async val => await OnProductChanged(item, val))"
+                                       Placeholder="-- Chọn sản phẩm --"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Class="w-100">
+                                @foreach (var p in ProductsofStorage)
+                                {
+                                    <MudSelectItem T="int?" Value="@p.ProductId">@p.ProductName</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            <MudSelect T="int?" Label="Chi tiết sản phẩm"
+                                       Value="item.SelectedDetailId"
+                                       ValueChanged="val => OnDetailChanged(item, val)"
+                                       Placeholder="-- Chọn chi tiết sản phẩm --"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Disabled="@(!item.FilteredProductDetails?.Any() ?? true)"
+                                       Class="w-100">
+                                @if (item.FilteredProductDetails != null)
+                                {
+                                    @foreach (var detail in item.FilteredProductDetails)
+                                    {
+                                        <MudSelectItem T="int?" Value="@detail.DetailId">
+                                            @($"{detail.FabricName} - {detail.ColorName} - {detail.SizeName} - {detail.Quantity}")
+                                        </MudSelectItem>
+                                    }
+                                }
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="6" sm="1">
+                            <MudNumericField T="int?" Label="SL"
+                                             @bind-Value="item.Quantity"
+                                             Variant="Variant.Outlined"
+                                             Max="item.QuantityInStock"
+                                             Margin="Margin.Dense"
+                                             Immediate="true"
+                                             Required="true"
+                                             Min="1" />
+                        </MudItem>
+
+                        <MudItem xs="6" sm="2">
+                            <MudNumericField T="int?" Label="Lợi nhuận (%)"
+                                             @bind-Value="item.profitPercent"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Min="0"
+                                             Max="100                       "
+                                             Format="N0" />
+                        </MudItem>
+
+                        <MudItem xs="12" sm="12" Class="d-flex justify-end">
+                            <MudTooltip Text="Xóa dòng">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               OnClick="@(() => RemoveLine(item))"
+                                               Size="Size.Medium" />
+                            </MudTooltip>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+
+            <MudStack Row Spacing="3" Class="mt-4">
+                <MudButton StartIcon="@Icons.Material.Filled.Add"
+                           Color="Color.Secondary"
+                           Variant="Variant.Outlined"
+                           OnClick="AddLine">
+                    Thêm dòng
+                </MudButton>
+
+                <MudButton StartIcon="@Icons.Material.Filled.Save"
+                           Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           ButtonType="ButtonType.Submit"
+                           OnClick="HandleSubmit"
+                           Loading="@isSubmitting">
+                    @(isSubmitting ? "Đang lưu..." : "Lưu phiếu xuất")
+                </MudButton>
+            </MudStack>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+
+@code 
+{
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    private IEnumerable<ProductViewModel> ProductsofStorage = new List<ProductViewModel>();
+    private IEnumerable<ProductDetailViewModel> productDetails = new List<ProductDetailViewModel>();
+    private List<StorageViewModel> Storages = new();
+    private int? SelectedStorageId;
+
+    private List<BranchViewModel> Branches = new();
+    private List<ReceiptDetailWrapper> ReceiptLines = new();
+    private int? SelectedBranchId;
+    private bool isSubmitting = false;
+    private string? role;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var storageTask = StorageService.GetAllProductsStorageAsync();
+            var branchTask = branchService.GetAllBranchesAsync();
+
+            await Task.WhenAll(storageTask, branchTask);
+
+            Storages = storageTask.Result;
+
+            var query = branchTask.Result;
+            if (query.IsSuccess)
+            {
+                    Branches = query.Data ?? new List<BranchViewModel>();
+            }
+            else
+            {
+                    Snackbar.Add(query.Message, Severity.Error);
+            }
+
+            AddLine();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi khi tải dữ liệu: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private void AddLine() => ReceiptLines.Add(new ReceiptDetailWrapper());
+
+    private void RemoveLine(ReceiptDetailWrapper item)
+    {
+        if (ReceiptLines.Count > 1)
+            ReceiptLines.Remove(item);
+        else
+            Snackbar.Add("Phải có ít nhất một dòng trong phiếu xuất", Severity.Warning);
+    }
+
+    private async Task OnProductChanged(ReceiptDetailWrapper item, int? productId)
+    {
+        item.ProductId = productId;
+        item.SelectedDetailId = null;
+
+        if (productId is not null)
+        {
+            var details = await StorageService.GetByProductDetailId(productId.Value);
+            item.FilteredProductDetails = details?.ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnDetailChanged(ReceiptDetailWrapper item, int? detailId)
+    {
+        item.SelectedDetailId = detailId;
+        var selectedDetail = item.FilteredProductDetails?.FirstOrDefault(d => d.DetailId == detailId);
+        item.QuantityInStock = selectedDetail?.Quantity ?? 0;
+
+    }
+
+        private async Task HandleSubmit()
+        {
+            try
+            {
+                isSubmitting = true;
+
+                if (!SelectedBranchId.HasValue)
+                {
+                    Snackbar.Add("Vui lòng chọn chi nhánh cần xuất hàng!", Severity.Warning);
+                    return;
+                }
+
+                if (!ReceiptLines.Any())
+                {
+                    Snackbar.Add("Phiếu xuất phải có ít nhất một chi tiết!", Severity.Warning);
+                    return;
+                }
+                if (!SelectedStorageId.HasValue)
+                {
+                    Snackbar.Add("Vui lòng chọn kho sản phẩm!", Severity.Warning);
+                    return;
+                }
+
+                var invalidLines = ReceiptLines.Where(x =>
+                    !x.ProductId.HasValue ||
+                    !x.SelectedDetailId.HasValue ||
+                    x.Quantity is null or <= 0 ||
+                    x.profitPercent is null or < 0).ToList();
+
+                if (invalidLines.Any())
+                {
+                    Snackbar.Add("Vui lòng điền đầy đủ thông tin cho tất cả các dòng", Severity.Warning);
+                    return;
+                }
+
+                var dtoList = ReceiptLines.Select(x => new CreateReceiptDetailDTO
+                {
+                    ProductId = x.ProductId,
+                    ProductDetailId = x.SelectedDetailId,
+                    Quantity = x.Quantity,
+                    ProfitPercent = x.profitPercent
+                }).ToList();
+
+                var managerId = await TokenService.GetUserIdAsync();
+                var result = await outputReceiptService.CreateReceiptAsync(dtoList, managerId, SelectedBranchId.Value);
+
+                if (result.IsSuccess)
+                {
+                    MudDialog.Close(DialogResult.Ok(true));
+                    Snackbar.Add($"{result.Message}", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add($"Lỗi: {result.Message}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Có lỗi xảy ra: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                isSubmitting = false;
+            }
+        }
+        private async Task OnStorageChanged(int? storageId)
+        {
+        SelectedStorageId = storageId;
+
+        if (storageId.HasValue)
+        {
+            var result = await StorageService.GetByProductId(storageId.Value);
+            ProductsofStorage = result ?? new List<ProductViewModel>();
+        }
+
+        foreach (var line in ReceiptLines)
+        {
+            line.ProductId = null;
+            line.SelectedDetailId = null;
+            line.FilteredProductDetails = new List<ProductDetailViewModel>();
+        }
+
+        StateHasChanged();
+        }
+
+    }
+    
+ }

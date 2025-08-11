@@ -13,31 +13,69 @@ namespace MenShopBlazor.Services.Payment
     public class PaymentService : IPaymentService
     {
         private readonly HttpClient _httpClient;
-        private const string baseUrl = "http://localhost:7094/api/Payment";
+        private const string baseUrl = "https://localhost:7094/api/Payment";
 
         public PaymentService(IHttpClientFactory httpClientFactory)
         {
             _httpClient = httpClientFactory.CreateClient("AuthorizedClient");
         }
 
+        public async Task<PaymentViewModel?> GetPaymentByOrderIdAsync(string orderId)
+        {
+            var response = await _httpClient.GetAsync($"{baseUrl}/by-order/{orderId}");
+
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var result = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<PaymentViewModel>(result);
+        }
+
+        public async Task<PaymentViewModel?> GetPaymentByPaymentIdAsync(string paymentId)
+        {
+            var response = await _httpClient.GetAsync($"{baseUrl}/{paymentId}");
+
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var result = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<PaymentViewModel>(result);
+        }
 
         public async Task<string> CreateVNPayUrlAsync(VnPaymentRequestModel model)
         {
-            var json = JsonConvert.SerializeObject(model);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync($"{baseUrl}/create-vnpay-payment", content);
-            var result = await response.Content.ReadAsStringAsync();
+            try
+            {
+                var json = JsonConvert.SerializeObject(model);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync($"{baseUrl}/create-vnpay-payment", content);
 
-            var obj = JsonConvert.DeserializeObject<VnPayUrlResponseModel>(result);
-            return obj?.PaymentUrl ?? "";
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"VNPay API Error: {response.StatusCode} - {error}");
+                    return "";
+                }
+
+                var result = await response.Content.ReadAsStringAsync();
+                var obj = JsonConvert.DeserializeObject<VnPayUrlResponseModel>(result);
+
+                return obj?.PaymentUrl ?? "";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Lỗi khi gọi VNPay API: {ex.Message}");
+                return "";
+            }
         }
+
 
         public async Task<PaymentResponseDTO> AddPaymentToOrderAsync(string orderId, CreatePaymentDTO dto)
         {
             var json = JsonConvert.SerializeObject(dto);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync($"{baseUrl}/api/payments/{orderId}", content);
+            var response = await _httpClient.PostAsync($"{baseUrl}/{orderId}", content);
             var result = await response.Content.ReadAsStringAsync();
 
             return JsonConvert.DeserializeObject<PaymentResponseDTO>(result);

@@ -7,7 +7,7 @@
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "Admin, RevenueManager")]
 @using Microsoft.AspNetCore.Authorization;
 @using Microsoft.AspNetCore.Components.Authorization;
 
@@ -17,7 +17,7 @@
 </MudOverlay>
 @if (!_loading)
 {
-<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
 <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
     <MudGrid>
         <MudItem xs="12">
@@ -60,7 +60,6 @@
                             @(context.Item.Status ? "Kích hoạt" : "Vô hiệu hóa")
                         </MudIconButton>
                     </CellTemplate>
-
                 </PropertyColumn>
                 <PropertyColumn Property="x => x.CategoryName" Title="TÊN DANH MỤC" />
 
@@ -109,7 +108,7 @@
         </MudItem>
     </MudGrid>
 </MudContainer>
-  }
+ }
 @code {
     private List<BreadcrumbItem> _items = new();
 

@@ -5,43 +5,66 @@
 @using MenShopBlazor.Extensions
 @using MenShopBlazor.DTOs.Payment
 @using MenShopBlazor.DTOs.VNPay
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.DTOs.Account
 @using MenShopBlazor.DTOs.Order.CreateOrder
 @using MenShopBlazor.DTOs.Order.OrderReponse
-@using MenShopBlazor.Services.Order
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Services.Branch
 @using MenShopBlazor.Services.Payment
+@using MenShopBlazor.Services.Order
+@using MenShopBlazor.Pages.User
 @inject IOrderService orderService
+@inject IBranchService BranchService
+@inject ITokenService TokenService
+@inject IAdminService AdminService
 @inject IPaymentService paymentService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
 
 <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
     <MudText Typo="Typo.h5" Class="mb-4">TẠO HÓA ĐƠN</MudText>
     <MudGrid Class="overflow-y-auto">
         <MudItem xs="12" sm="8">
-            <MudAutocomplete T="ProductModel"
-            Label="Tìm sản phẩm..."
-            SearchFunc="SearchProducts"
-            ToStringFunc="p => p.Name"
-            ValueChanged="OnProductSelected"
-            Value="selectedProduct"
-            Dense="true"
-            Clearable="true"
-            Class="mb-3">
-
+            <MudAutocomplete T="BranchProductDetailModel"
+                             Label="Tìm sản phẩm..."
+                             SearchFunc="SearchProductDetails"                       
+                             ValueChanged="OnProductDetailSelected"
+                             Dense="true"
+                             ToStringFunc="DisplayProductDetail"
+                             Variant="Variant.Outlined"
+                             AdornmentIcon="@Icons.Material.Filled.Search"
+                             Clearable="true"
+                             Class="mb-3">
                 <ItemTemplate>
                     <MudPaper Class="d-flex align-center p-2">
                         <MudAvatar Class="me-2">
-                            <MudImage Src="@context.Img"></MudImage>
+                            <MudImage Src="@context.Images.FirstOrDefault()" Alt="Ảnh sản phẩm" Height="100" />
                         </MudAvatar>
-                        <div>
-                            <MudText Typo="Typo.subtitle2">@context.Name</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Price.ToString("N0") đ</MudText>
-                        </div>
+                        <MudItem>
+                            <MudText Typo="Typo.subtitle2">@context.ProductName @context.DetailId</MudText>
+                                <MudText>@($"{context.ColorName}, {context.FabricName}, Size: {context.SizeName}")</MudText>
+                            <MudStack Row Spacing="2">
+                                <MudText Class="text-decoration-line-through" Style="@($"color:{Colors.Gray.Lighten1};")">
+                                    @FormatCurrency(context.SellPrice ?? 0)
+                                </MudText>
+                                <MudText>@FormatCurrency(GetFinalPrice(context))</MudText>
+                                <MudText Style="@($"color:{Colors.Red.Lighten1};")">- @($"{context.DiscountPercent:0}")%</MudText>
+                            </MudStack>
+                            <MudText Typo="Typo.subtitle2">Còn: @context.Quantity</MudText>
+
+                        </MudItem>
                     </MudPaper>
                 </ItemTemplate>
-
             </MudAutocomplete>
+
 
 
             <MudTable Items="@invoiceItems" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
@@ -51,42 +74,47 @@
                     <MudTh>Tên SP</MudTh>
                     <MudTh>SL</MudTh>
                     <MudTh>Đơn giá</MudTh>
+                    <MudTh>Giảm giá(%)</MudTh>
                     <MudTh>Thành tiền</MudTh>
                     <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="STT">@(invoiceItems.IndexOf(context) + 1)</MudTd>
-                    <MudTd DataLabel="Mã SP">@context.Product.ProductId</MudTd>
-                    <MudTd DataLabel="Tên SP">@context.Product.Name</MudTd>
-                    <MudTd DataLabel="SL" >
+                    <MudTd DataLabel="Mã SP">@context.ProductDetail.DetailId</MudTd>
+                    <MudTd DataLabel="Tên SP">@context.ProductDetail.ProductName</MudTd>
+                    <MudTd DataLabel="SL">
                         <MudNumericField T="int"
-                        Value="context.Quantity"
-                        Min="1"
-                        Immediate="true"
-                        ValueChanged="@(value => OnQuantityChanged(context, value))" />
+                                         Value="context.Quantity"
+                                         Min="1"
+                                         Max="SelectedProductDetail?.Quantity ?? 1000"
+                                         Immediate="true"
+                                         ValueChanged="@(value => OnQuantityChanged(context, value))" />
                     </MudTd>
-                    <MudTd DataLabel="Đơn giá">@context.Product.Price.ToString("N0") đ</MudTd>
-                    <MudTd DataLabel="Thành tiền">@FormatCurrency(context.Quantity * context.Product.Price)</MudTd>
+                    <MudTd DataLabel="Đơn giá">@FormatCurrency(context.ProductDetail.SellPrice ?? 0)</MudTd>
+                    <MudTd DataLabel="Giảm giá(%)">@($"{context.ProductDetail.DiscountPercent:0}")</MudTd>
+                    <MudTd DataLabel="Thành tiền">@FormatCurrency(context.Quantity * GetFinalPrice(context.ProductDetail))</MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                        OnClick="() => RemoveItem(context)" />
+                                       OnClick="() => RemoveItem(context)" />
                     </MudTd>
                 </RowTemplate>
             </MudTable>
         </MudItem>
 
+
         <MudItem xs="12" sm="4">
             <MudPaper Class="p-4">
-                <MudText Typo="Typo.h6">Thông tin thanh toán</MudText>
-                <MudAutocomplete T="CustomerDTO"
-                @bind-Value="selectedCustomer"
-                ToStringFunc="customer => customer.FullName"
-                SearchFunc="SearchCustomers"
-                Label="Tìm kiếm khách hàng"
-                Placeholder="Tìm theo tên, SDT..."
-                Class="mt-3"
-                Adornment="Adornment.Start"
-                AdornmentIcon="@Icons.Material.Filled.Person" />
+                <MudText Class="mb-2" Typo="Typo.h6">Thông tin thanh toán</MudText>
+                <MudAutocomplete T="UserViewModel"
+                                 @bind-Value="selectedCustomer"
+                                 ToStringFunc="DisplayCustomer"
+                                 SearchFunc="SearchCustomers"
+                                 Label="Tìm kiếm khách hàng"
+                                 Placeholder="Tìm theo tên, SDT..."
+                                 Class="mt-3"
+                                 ariant="Variant.Outlined"
+                                 Adornment="Adornment.Start"
+                                 AdornmentIcon="@Icons.Material.Filled.Person" />
 
                 <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add"
                 OnClick="OpenAddCustomerDialog"
@@ -107,8 +135,6 @@
                     <MudRadio T="PaymentMethod" Color="Color.Secondary" Value="@PaymentMethod.VNPay">Thanh toán VNPay</MudRadio>
                     <MudRadio T="PaymentMethod" Color="Color.Tertiary" Value="@PaymentMethod.Momo" Disabled=true>Thanh toán MoMo</MudRadio>
                 </MudRadioGroup>
-
-
 
 
                 @if (paymentMethod == PaymentMethod.Cash)
@@ -136,60 +162,195 @@
     [Parameter]
     public int? BranchId { get; set; }
     private string? role;
-    private ProductModel? selectedProduct;
+    private BranchProductModel? selectedProduct;
+    private BranchProductDetailModel? SelectedProductDetail { get; set; }
+
     private List<InvoiceItem> invoiceItems = new();
+    private IEnumerable<UserViewModel>? allCustomers;
+
     private decimal total = 0;
     private PaymentMethod paymentMethod { get; set; }
 
+    [Parameter] public int? CategoryId { get; set; }
+    private List<BranchProductDetailModel> productDetails = new();
+    private List<BranchProductModel> products = new();
+    private List<BranchProductDetailModel> allProductDetails = new(); // NEW: Lưu toàn bộ chi tiết
+    private string? ColorName { get; set; }
+    private string? SizeName { get; set; }
+    private string? FabricName { get; set; }
 
-    private string customerPaid = "";
-    private string customerId = "ecb0c83b-9ecf-4962-a109-d4e3369af6ec";
-    private string employeeId = "ded0270f-d0ff-422e-b456-d5c08a8c0df7";
+    private string? customerPaid;
+    private string? customerId;
+    private string? employeeId;
     private string FormatCurrency(decimal value) => $"{value:N0} đ";
-    private CustomerDTO selectedCustomer;
-    private List<CustomerDTO> customers = new();
+    private UserViewModel selectedCustomer;
+    private AccountRegisterDTO user = new();
 
     protected override async Task OnInitializedAsync()
     {
+        await EnsureBranchIdAsync();
+        await LoadBranchProductsAndDetailsAsync();
+        await LoadCustomersAsync();
+        await LoadEmployeeIdAsync();
         paymentMethod = PaymentMethod.Cash;
     }
-    private List<ProductModel> products = new()
-    {
-        new() { ProductId = 10, Name = "Áo sơ mi", Price = 350000, Img = "http://localhost:5014/StaticFiles/Images/0d9a0897-c8f7-4b4f-85e8-f8b73c8588d4_7.5.4.jpg" },
-        new() { ProductId = 2, Name = "Quần jean", Price = 300000, Img = "http://localhost:5014/StaticFiles/Images/7-5.3.jpg"},
-        new() { ProductId = 3, Name = "Áo thun", Price = 200000, Img ="http://localhost:5014/StaticFiles/Images/3.8.jpg"}
-    };
 
-    private Task<IEnumerable<ProductModel>> SearchProducts(string value, CancellationToken _)
+
+    private async Task LoadEmployeeIdAsync()
     {
-        IEnumerable<ProductModel> result;
-        if (string.IsNullOrWhiteSpace(value))
-            result = products;
+        employeeId = await TokenService.GetUserIdAsync();
+    }
+
+    private async Task LoadCustomersAsync()
+    {
+        var response = await AdminService.GetUsersAsync();
+        if (response.IsSuccess)
+        {
+            allCustomers = response.Data?.Where(x => x.UserRole == "Customer").ToList();
+        }
         else
-            result = products.Where(p => p.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+        {
+            Snackbar.Add(response.Message, Severity.Error);
+        }
+    }
+
+    private async Task EnsureBranchIdAsync()
+    {
+        if (BranchId is > 0) return;
+        role = await TokenService.GetRoleAsync();
+        var userResponse = await AdminService.GetCurrentUserAsync();
+        if (userResponse?.IsSuccess == true)
+        {
+            BranchId = userResponse.Data?.BranchId;
+        }
+        else
+        {
+            BranchId = null;
+        }
+    }
+
+    private async Task LoadBranchProductsAsync()
+    {
+        try
+        {
+            var response = await BranchService.GetBranchProduct(BranchId);
+            if (response == null || !response.IsSuccess)
+            {
+                products = [];
+                return;
+            }
+
+            var list = response.Data ?? [];
+            if (CategoryId.HasValue)
+            {
+                list = list.Where(p => p.CategoryProductID == CategoryId.Value).ToList();
+            }
+
+            products = list;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadBranchProductsAndDetailsAsync()
+    {
+        try
+        {
+            var productResponse = await BranchService.GetBranchProduct(BranchId);
+            if (productResponse?.IsSuccess != true)
+            {
+                products = [];
+                allProductDetails = [];
+                return;
+            }
+
+            var list = productResponse.Data ?? [];
+            if (CategoryId.HasValue)
+            {
+                list = list.Where(p => p.CategoryProductID == CategoryId.Value).ToList();
+            }
+            products = list;
+
+            var detailTasks = products.Select(async p =>
+            {
+                var detailResponse = await BranchService.GetBranchProductDetailbyProductId(BranchId.Value, p.ProductId);
+                return detailResponse?.IsSuccess == true
+                    ? detailResponse.Data ?? new List<BranchProductDetailModel>()
+                    : new List<BranchProductDetailModel>();
+            });
+
+            var detailsList = await Task.WhenAll(detailTasks);
+            allProductDetails = detailsList.SelectMany(d => d).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+            products = [];
+            allProductDetails = [];
+        }
+    }
+
+
+    private Task<IEnumerable<BranchProductDetailModel>> SearchProductDetails(string value, CancellationToken _)
+    {
+        IEnumerable<BranchProductDetailModel> result;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            result = allProductDetails;
+        }
+        else
+        {
+            result = allProductDetails.Where(d =>
+                (!string.IsNullOrEmpty(d.ProductName) &&
+                 d.ProductName.Contains(value, StringComparison.OrdinalIgnoreCase))
+                ||
+                d.DetailId.ToString().Contains(value, StringComparison.OrdinalIgnoreCase)
+            );
+        }
 
         return Task.FromResult(result);
     }
 
-    private Task OnProductSelected(ProductModel product)
+    private async Task OnProductDetailSelected(BranchProductDetailModel detail)
     {
-        if (product == null) return Task.CompletedTask;
+        if (detail == null) return;
 
-        AddProductToInvoice(product);
-        selectedProduct = null;
-        return Task.CompletedTask;
+        AddProductDetailToInvoice(detail);
+        await Task.Yield();
+        SelectedProductDetail = null;
     }
 
-    private void AddProductToInvoice(ProductModel product)
+
+
+
+    private void ConfirmAddProductDetail()
     {
-        var existing = invoiceItems.FirstOrDefault(i => i.Product.ProductId == product.ProductId);
+        if (selectedProduct == null || SelectedProductDetail == null)
+        {
+            Snackbar.Add("Vui lòng chọn chi tiết sản phẩm.", Severity.Warning);
+            return;
+        }
+
+        AddProductDetailToInvoice(SelectedProductDetail);
+
+        selectedProduct = null;
+        SelectedProductDetail = null;
+        productDetails.Clear();
+    }
+
+    private void AddProductDetailToInvoice(BranchProductDetailModel productdetail)
+    {
+        var existing = invoiceItems.FirstOrDefault(i => i.ProductDetail.DetailId == productdetail.DetailId);
         if (existing != null)
         {
             existing.Quantity++;
         }
         else
         {
-            invoiceItems.Add(new InvoiceItem { Product = product });
+            invoiceItems.Add(new InvoiceItem { ProductDetail = productdetail });
         }
 
         CalculateTotal();
@@ -209,14 +370,23 @@
 
     private void CalculateTotal()
     {
-        total = invoiceItems.Sum(i => i.Quantity * i.Product.Price);
-    }
+        total = invoiceItems.Sum(i =>
+        {
+            var price = i.ProductDetail.SellPrice ?? 0;
+            var discount = i.ProductDetail.DiscountPercent ?? 0;
+            var finalPrice = price * (1 - discount / 100);
 
+            return i.Quantity * finalPrice;
+        });
+    }
 
     private async Task PayInvoice()
     {
         if (!ValidateBeforeCreateOrder())
             return;
+
+        if (selectedCustomer != null)
+            customerId = selectedCustomer.UserId;
 
         var orderResponse = await CreateOrderAsync();
         if (!orderResponse.IsSuccess)
@@ -226,20 +396,16 @@
         }
 
         var orderId = orderResponse.OrderId;
-
         switch (paymentMethod)
         {
             case PaymentMethod.VNPay:
                 await HandleVNPayAsync(orderId);
                 break;
-
             default:
                 await HandleOfflinePaymentAsync(orderId);
                 break;
         }
     }
-
-
 
     private bool ValidateBeforeCreateOrder()
     {
@@ -266,35 +432,69 @@
 
         return true;
     }
+
+    private decimal GetFinalPrice(BranchProductDetailModel product)
+    {
+        if (product.DiscountPercent.HasValue && product.DiscountPercent.Value > 0)
+        {
+            return product.SellPrice.HasValue
+                ? product.SellPrice.Value * (1 - product.DiscountPercent.Value / 100)
+                : 0;
+        }
+        return product.SellPrice ?? 0;
+    }
+
     private async Task<OrderResponseDTO> CreateOrderAsync()
     {
-        var createOrderDto = new CreateOrderDTO
+        foreach (var item in invoiceItems)
+        {
+            var stockQuantity = item.ProductDetail.Quantity ?? 0;
+            if (item.Quantity > stockQuantity)
             {
-                CustomerId = customerId,
-                EmployeeId = employeeId,
-                Details = invoiceItems.Select(i => new CreateOrderDetailDTO
+                Snackbar.Add("Số lượng vượt quá tồn kho sản phẩm!", Severity.Error);
+                return new OrderResponseDTO();
+            }
+        }
+
+        var createOrderDto = new CreateOrderDTO
+        {
+            CustomerId = customerId,
+            EmployeeId = employeeId,
+            ReceiverName = selectedCustomer?.FullName,
+            ReceiverPhone = selectedCustomer?.UserPhone,
+            BranchId = BranchId,
+            Details = invoiceItems.Select(i =>
+            {
+                decimal sellPrice = i.ProductDetail.SellPrice ?? 0;
+                decimal discountPercent = i.ProductDetail.DiscountPercent ?? 0;
+                decimal discountedPrice = discountPercent > 0
+                    ? sellPrice - (sellPrice * discountPercent / 100)
+                    : sellPrice;
+
+                return new CreateOrderDetailDTO
                 {
-                    ProductDetailId = i.Product.ProductId,
+                    ProductDetailId = i.ProductDetail.DetailId ?? 0,
                     Quantity = i.Quantity,
-                    Price = i.Product.Price
-                }).ToList()
-            };
+                    SellPrice = sellPrice,
+                    DiscountedPrice = discountedPrice
+                };
+            }).ToList()
+        };
 
         return await orderService.CreateOrderAsync(createOrderDto);
     }
+
     private async Task HandleVNPayAsync(string orderId)
     {
         var vnRequest = new VnPaymentRequestModel
-            {
-                OrderId = $"{orderId}",
-                FullName = "Huỳnh Ngọc Luận",
-                Description = $"Đơn hàng của {customerId}",
-                Amount = (int)total
-            };
+        {
+            OrderId = $"{orderId}",
+            FullName = "Huỳnh Ngọc Luận",
+            Description = $"Đơn hàng của {customerId}",
+            Amount = (int)total
+        };
 
         var url = await paymentService.CreateVNPayUrlAsync(vnRequest);
-        Console.WriteLine($"Kết quả trả về từ server: {url}");
-
         if (string.IsNullOrEmpty(url))
         {
             Snackbar.Add("Không thể tạo liên kết VNPay. Vui lòng thử lại.", Severity.Error);
@@ -302,58 +502,62 @@
         }
 
         var parameters = new DialogParameters
-    {
-        { "ContentText", "Bạn có chắc chắn muốn chuyển đến VNPay để thanh toán không?" }
-    };
+        {
+            { "ContentText", "Bạn có chắc chắn muốn chuyển đến VNPay để thanh toán không?" }
+        };
 
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
         var dialog = DialogService.Show<ConfirmDialog>("Xác nhận", parameters, options);
         var result = await dialog.Result;
 
-            if (!result.Canceled)
-            {
-                Snackbar.Add("Đang chuyển tới VNPay...", Severity.Info);
-                Console.WriteLine("VNPay URL: " + url);
-                await Task.Delay(500);
-                Navigation.NavigateTo(url);
-            }
+        if (!result.Canceled)
+        {
+            Snackbar.Add("Đang chuyển tới VNPay...", Severity.Info);
+            await Task.Delay(500);
+            Navigation.NavigateTo(url);
+        }
         else
         {
             Snackbar.Add("Bạn đã hủy thanh toán VNPay", Severity.Warning);
         }
     }
 
-
     private async Task HandleOfflinePaymentAsync(string orderId)
     {
         var paymentDto = new CreatePaymentDTO
-            {
-                Amount = total,
-                Method = paymentMethod
-            };
+        {
+            Amount = total,
+            Method = paymentMethod
+        };
 
         var paymentResult = await paymentService.AddPaymentToOrderAsync(orderId, paymentDto);
-        if (paymentResult != null)
-        {
-            var change = decimal.TryParse(customerPaid, out var paid) ? paid - total : 0;
-            Snackbar.Add($"Thanh toán đơn hàng thành công   ", Severity.Success);
-            var queryParams = $"?orderId={orderId}&amount={total}&transactionCode=OFFLINE-{DateTime.Now.Ticks}&method=Cash&customerPaid={paid}&change={change}";
-            Navigation.NavigateTo($"/payment-result{queryParams}");
-
-            ResetForm();
-        }
-
-        else
+        if (paymentResult == null)
         {
             Snackbar.Add("Lưu thông tin thanh toán thất bại.", Severity.Error);
+            return;
         }
+
+        var decreaseResult = await orderService.AutoDecreaseStockOffline(orderId);
+        if (decreaseResult == null || !decreaseResult.Success)
+        {
+            Snackbar.Add($"Không thể giảm tồn kho: {decreaseResult?.Message ?? "Lỗi không xác định"}", Severity.Error);
+            return;
+        }
+
+        var change = decimal.TryParse(customerPaid, out var paid) ? paid - total : 0;
+        Snackbar.Add("Thanh toán đơn hàng thành công.", Severity.Success);
+        var queryParams = $"?orderId={orderId}&amount={total}&transactionCode=OFFLINE-{DateTime.Now.Ticks}&method=Cash&customerPaid={paid}&change={change}";
+        Navigation.NavigateTo($"/payment-result{queryParams}");
+
+        ResetForm();
     }
+
     private void ResetForm()
     {
         invoiceItems.Clear();
         total = 0;
         customerPaid = "";
-        paymentMethod = PaymentMethod.Cash; 
+        paymentMethod = PaymentMethod.Cash;
     }
 
     private string GetPaymentMethodName() =>
@@ -370,91 +574,51 @@
     {
         if (decimal.TryParse(customerPaid, out var paid))
         {
-            customerPaid = paid.ToString("N0"); 
+            customerPaid = paid.ToString("N0");
         }
     }
-    private Task<IEnumerable<CustomerDTO>> SearchCustomers(string value, CancellationToken token)
+
+    private Task<IEnumerable<UserViewModel>> SearchCustomers(string value, CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(value))
-            return Task.FromResult(Enumerable.Empty<CustomerDTO>());
+            return Task.FromResult(Enumerable.Empty<UserViewModel>());
 
         var result = allCustomers
             .Where(c => c.FullName.Contains(value, StringComparison.OrdinalIgnoreCase)
-                     || c.PhoneNumber.Contains(value))
+                     || c.UserPhone.Contains(value))
             .ToList();
 
         return Task.FromResult(result.AsEnumerable());
     }
 
-
+    private string DisplayCustomer(UserViewModel customer)
+    {
+        return $"{customer.FullName} - {customer.UserPhone}";
+    }
+    private string DisplayProductDetail(BranchProductDetailModel detail)
+    {
+        return $"{detail.ProductName} {detail.DetailId}";
+    }
     private async Task OpenAddCustomerDialog()
     {
-        // var parameters = new DialogParameters();
-        // var options = new DialogOptions { MaxWidth = MaxWidth.Small, CloseButton = true };
-        // var dialog = DialogService.Show<AddCustomerDialog>("Thêm khách hàng", parameters, options);
-        // var result = await dialog.Result;
+        var parameters = new DialogParameters();
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
 
-        // if (!result.Canceled && result.Data is CustomerDTO newCustomer)
-        // {
-        //     selectedCustomer = newCustomer;
-        //     Snackbar.Add("Đã thêm khách hàng mới.", Severity.Success);
-        // }
-    }
+        var dialog = DialogService.Show<CreateCustomerDialog>("Thêm khách hàng", parameters, options);
+        var result = await dialog.Result;
 
-    private List<CustomerDTO> allCustomers = new() 
-{
-    new CustomerDTO { Id = "KH001", FullName = "Nguyễn Văn A", PhoneNumber = "0912345678" },
-    new CustomerDTO { Id = "KH002", FullName = "Trần Thị B", PhoneNumber = "0909876543" },
-    new CustomerDTO { Id = "KH003", FullName = "Lê Văn C", PhoneNumber = "0933221100" },
-    new CustomerDTO { Id = "KH004", FullName = "Phạm Thị D", PhoneNumber = "0988999777" },
-    new CustomerDTO { Id = "KH005", FullName = "Huỳnh Ngọc Luận", PhoneNumber = "0888123123" }
-};
-
-    public class CustomerDTO
-    {
-        public string Id { get; set; }
-        public string FullName { get; set; }
-        public string PhoneNumber { get; set; }
+        if (!result.Canceled)
+        {
+            Snackbar.Add("Đã thêm khách hàng mới.", Severity.Success);
+            await LoadCustomersAsync();
+            StateHasChanged();
+        }
     }
 
     public class InvoiceItem
     {
-        public ProductModel Product { get; set; }
+        public BranchProductDetailModel ProductDetail { get; set; }
         public int Quantity { get; set; } = 1;
     }
-
-    public class ProductModel
-    {
-        public int ProductId { get; set; }
-        public string Name { get; set; }
-        public decimal Price { get; set; }
-        public string Img { get; set; }
-    }
-
-    // private async Task EnsureBranchIdAsync()
-    // {
-    //     if (BranchId != null && BranchId > 0)
-    //         return;
-
-    //     if (role == "Customer")
-    //     {
-    //         var branches = await BranchService.GetAllBranchesAsync();
-    //         var onlineBranch = branches?.Data?.FirstOrDefault(b => b.IsOnline);
-    //         if (onlineBranch != null)
-    //         {
-    //             BranchId = onlineBranch.BranchId;
-    //             return;
-    //         }
-    //     }
-    //     else if (!string.IsNullOrEmpty(role))
-    //     {
-    //         var userResponse = await AdminService.GetCurrentUserAsync();
-    //         var user = userResponse?.Data;
-    //         if (user?.BranchId != null)
-    //         {
-    //             BranchId = user.BranchId;
-    //         }
-    //     }
-    // }
-
 }
+

@@ -1,0 +1,249 @@
+﻿@page "/create-input-receipt"
+
+@inject IProductService productService
+@inject ITokenService TokenService
+@inject IDialogService DialogService
+@inject IInputReceiptService inputReceiptService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Receipt.CreateReceipt
+@using MenShopBlazor.Services.InputReceiptService
+@using MenShopBlazor.Services.Product
+@using MenShopBlazor.Shared.Wrapper
+@using MudBlazor
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6" GutterBottom="true">
+            Tạo phiếu nhập kho
+        </MudText>
+
+        <EditForm Model="@ReceiptLines" OnValidSubmit="HandleSubmit">
+            @foreach (var item in ReceiptLines)
+            {
+                <MudPaper Class="pa-4 mb-4" Elevation="2">
+                    <MudGrid>
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="int?" Label="Sản phẩm"
+                                       Value="item.ProductId"
+                                       ValueChanged="@(async val => await OnProductChanged(item, val))"
+                                       Placeholder="-- Chọn sản phẩm --"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Class="w-100">
+                                @foreach (var p in Products)
+                                {
+                                    <MudSelectItem T="int?" Value="@p.ProductId">@p.ProductName</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            <MudSelect T="int?" Label="Chi tiết sản phẩm"
+                                       Value="item.SelectedDetailId"
+                                       ValueChanged="val => OnDetailChanged(item, val)"
+                                       Placeholder="-- Chọn chi tiết sản phẩm --"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Disabled="@(!item.FilteredProductDetails?.Any() ?? true)"
+                                       Class="w-100">
+                                @if (item.FilteredProductDetails != null)
+                                {
+                                    @foreach (var detail in item.FilteredProductDetails)
+                                    {
+                                        <MudSelectItem T="int?" Value="@detail.DetailId">
+                                            @($"{detail.FabricName} - {detail.ColorName} - {detail.SizeName}")
+                                        </MudSelectItem>
+                                    }
+                                }
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" md="1">
+                            <MudNumericField T="int?" Label="SL"
+                                             @bind-Value="item.Quantity"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Min="1"
+                                             Class="w-100" />
+                        </MudItem>
+
+                        <MudItem xs="12" md="2">
+                            <MudNumericField T="decimal?" Label="Giá"
+                                             @bind-Value="item.Price"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Min="0"
+                                             Format="N0"
+                                             Class="w-100" />
+                        </MudItem>
+
+                        <MudItem xs="12" md="1" Class="d-flex align-center">
+                            <MudTooltip Text="Xóa dòng">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               OnClick="@(() => RemoveLine(item))"
+                                               Size="Size.Medium" />
+                            </MudTooltip>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+
+            <MudStack Row Spacing="3" Class="mt-4">
+                <MudButton StartIcon="@Icons.Material.Filled.Add"
+                           Color="Color.Secondary"
+                           Variant="Variant.Outlined"
+                           OnClick="AddLine">
+                    Thêm dòng
+                </MudButton>
+
+                <MudButton StartIcon="@Icons.Material.Filled.Save"
+                           Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           ButtonType="ButtonType.Submit"
+                           Loading="@isSubmitting">
+                    @(isSubmitting ? "Đang lưu..." : "Lưu phiếu nhập")
+                </MudButton>
+            </MudStack>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    private IEnumerable<ProductViewModel> Products = new List<ProductViewModel>();
+    private IEnumerable<ProductDetailViewModel> productDetails = new List<ProductDetailViewModel>();
+    private List<ReceiptDetailWrapper> ReceiptLines = new();
+    private bool isSubmitting = false;
+    private int CategoryId;
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Products = await productService.GetAllProductsAsync();
+            AddLine();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi khi tải dữ liệu: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OnProductChanged(ReceiptDetailWrapper item, int? productId)
+    {
+        item.ProductId = productId;
+        item.SelectedDetailId = null;
+
+        if (productId is not null)
+        {
+
+            var product = Products.FirstOrDefault(p => p.ProductId == productId.Value);
+            if (product != null)
+            {
+                item.CategoryId = product.CategoryProductID;
+                CategoryId = product.CategoryProductID ?? 0; 
+            }
+
+            var details = await productService.GetProductDetailsAsync(productId.Value);
+            item.FilteredProductDetails = details?.ToList();
+        }
+
+        StateHasChanged();
+    }
+
+
+    private void OnDetailChanged(ReceiptDetailWrapper item, int? detailId)
+    {
+        item.SelectedDetailId = detailId;
+    }
+
+    private void AddLine() => ReceiptLines.Add(new ReceiptDetailWrapper());
+
+    private void RemoveLine(ReceiptDetailWrapper item)
+    {
+        if (ReceiptLines.Count > 1)
+            ReceiptLines.Remove(item);
+        else
+            Snackbar.Add("Phải có ít nhất một dòng trong phiếu nhập", Severity.Warning);
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+
+            if (!ReceiptLines.Any())
+            {
+                Snackbar.Add("Phiếu nhập phải có ít nhất một dòng", Severity.Warning);
+                return;
+            }
+
+            var invalidLines = ReceiptLines.Where(x =>
+                !x.CategoryId.HasValue ||
+                !x.ProductId.HasValue ||
+                !x.SelectedDetailId.HasValue ||
+                x.Quantity is null or <= 0 ||
+                x.Price is null or <= 0).ToList();
+
+            if (invalidLines.Any())
+            {
+                Snackbar.Add("Vui lòng điền đầy đủ thông tin cho tất cả các dòng", Severity.Warning);
+                return;
+            }
+
+            var dtoList = new List<CreateReceiptDetailDTO>();
+
+            foreach (var item in ReceiptLines)
+            {
+                var detail = item.FilteredProductDetails.FirstOrDefault(d => d.DetailId == item.SelectedDetailId);
+
+                if (detail == null) continue;
+
+                var dto = new CreateReceiptDetailDTO
+                {
+                    CategoryId = item.CategoryId,
+                    ProductId = item.ProductId,
+                    ProductDetailId = item.SelectedDetailId,
+                    Quantity = item.Quantity,
+                    Price = item.Price
+                };
+
+                Console.WriteLine($"Thêm dòng nhập: CategoryId={dto.CategoryId}, ProductId={dto.ProductId}, ProductDetailId={dto.ProductDetailId}, Quantity={dto.Quantity}, Price={dto.Price}");
+
+                dtoList.Add(dto);
+            }
+
+            var managerId = await TokenService.GetUserIdAsync();
+            var result = await inputReceiptService.CreateReceiptAsync(dtoList, managerId);
+
+            if (result.IsSuccess)
+            {
+                MudDialog.Close(DialogResult.Ok(true));
+                Snackbar.Add($"{result.Message}", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Lỗi: {result.Message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Có lỗi xảy ra: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+}

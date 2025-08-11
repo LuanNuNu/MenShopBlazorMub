@@ -1,4 +1,6 @@
-﻿namespace MenShopBlazor.DTOs.Product.ViewModel
+﻿using MenShopBlazor.DTOs.Collection.ViewModel;
+
+namespace MenShopBlazor.DTOs.Product.ViewModel
 {
     public class ProductViewModel
     {
@@ -11,5 +13,6 @@
         public bool Status { get; set; }
         public string? Thumbnail { get; set; }
         public ICollection<ProductDetailViewModel>? ProductDetails { get; set; }
+        public ICollection<CollectionDetailsViewModel>? CollectionDetails { get; set; }
     }
 }

@@ -33,22 +33,23 @@ public static class UrlHelper
     }
 
     public static string GenerateProductDetailUrl(
-         int productId,
-         string productName,
-         int? categoryId,
-         int? branchId,
-         string? colorName)
+     int productId,
+     string productName,
+     int? categoryId,
+     int? branchId,
+     string? colorName,
+     int? detailId = null) 
     {
         var slug = Slugify(productName);
 
         string path;
         if (categoryId.HasValue)
         {
-            path = $"/product-detail/{productId}/category={categoryId}/{slug}";
+            path = $"/chi-tiet-san-pham/{productId}/category={categoryId}/{slug}";
         }
         else
         {
-            path = $"/product-detail/{productId}/{slug}";
+            path = $"/chi-tiet-san-pham/{productId}/{slug}";
         }
 
         var queryParams = new List<string>();
@@ -58,6 +59,9 @@ public static class UrlHelper
 
         if (!string.IsNullOrWhiteSpace(colorName))
             queryParams.Add($"color={Uri.EscapeDataString(colorName)}");
+
+        if (detailId.HasValue)
+            queryParams.Add($"detailId={detailId.Value}");
 
         if (queryParams.Any())
             path += "?" + string.Join("&", queryParams);

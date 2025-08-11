@@ -1,0 +1,184 @@
+﻿@using MenShopBlazor.DTOs.DiscountPrice
+@using MenShopBlazor.Services.DiscountPrice
+@using MenShopBlazor.Shared
+@inject IDiscountPriceService DiscountPriceService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">Áp dụng khuyến mãi cho sản phẩm</MudText>
+
+        <MudPaper Class="pa-4 mt-2">
+            <MudAutocomplete T="DiscountPriceViewModel"
+                             Label="Chọn khuyến mãi"
+                             @bind-Value="selectedDiscount"
+                             ToStringFunc="@(d => d?.Name)"
+                             SearchFunc="SearchDiscountsAutocomplete"
+                             Required="true"
+                             Class="mt-3" />
+
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="AddDiscountDetail"
+                       Disabled="@(selectedDiscount == null || DiscountPrices != null)"
+                       Class="mt-4">
+                Thêm giảm giá
+            </MudButton>
+        </MudPaper>
+
+        @if (DiscountPrices != null)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3 w-100">
+                <MudGrid>
+                    <MudItem xs="12" sm="8" Class="d-flex flex-column justify-content-center">
+                        <MudText Typo="Typo.subtitle2">
+                            Sản phẩm này đã được áp dụng khuyến mãi: <b>@DiscountPrices.Name</b>
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            Giảm: @DiscountPrices.DiscountPercent% 
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            Từ <i>@DiscountPrices.StartTime?.ToString("dd/MM/yyyy")</i>
+                            đến <i>@DiscountPrices.EndTime?.ToString("dd/MM/yyyy")</i>
+                        </MudText>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="4" Class="d-flex align-items-center justify-content-end end-0">
+                        <MudTooltip Text="Xóa">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"
+                                           OnClick="@(() => DeleteColorAsync(existingDiscountDetail?.Id ?? 0))"
+                                           Size="Size.Medium" />
+                        </MudTooltip>
+                    </MudItem>
+                </MudGrid>
+            </MudAlert>
+
+        }
+
+
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel">Đóng</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public int detailId { get; set; }
+
+    private DiscountPriceViewModel selectedDiscount;
+    private List<DiscountPriceViewModel> allDiscountPrices = new();
+    private DiscountPriceViewModel DiscountPrices;
+    private DiscountPriceDetailViewModel existingDiscountDetail;
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        allDiscountPrices = await DiscountPriceService.GetAllDiscountPrice();
+        existingDiscountDetail = await DiscountPriceService.GetDiscountPriceDetailById(detailId);
+
+        if (existingDiscountDetail != null)
+        {
+
+            if (existingDiscountDetail.discountPriceId > 0)
+            {
+                DiscountPrices = await DiscountPriceService.GetDiscountPriceById(existingDiscountDetail.discountPriceId);
+            }
+        }
+        else
+        {
+            Console.WriteLine($"[Init] No discount detail found for product detail ID = {detailId}");
+        }
+    }
+
+
+    private Task<IEnumerable<DiscountPriceViewModel>> SearchDiscountsAutocomplete(string value, CancellationToken token)
+    {
+        var result = string.IsNullOrWhiteSpace(value)
+            ? allDiscountPrices
+            : allDiscountPrices.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(result);
+    }
+
+    private async Task AddDiscountDetail()
+    {
+        if (existingDiscountDetail != null && existingDiscountDetail.discountPriceId > 0)
+        {
+            Snackbar.Add("Sản phẩm này đã có chương trình khuyến mãi!", Severity.Error);
+            return;
+        }
+
+        if (selectedDiscount == null)
+        {
+            Snackbar.Add("Vui lòng chọn khuyến mãi", Severity.Warning);
+            return;
+        }
+
+        var dto = new CreateDiscountPriceDetailDTO
+        {
+            discountPriceId = selectedDiscount.Id,
+            productDetailIds = new List<int> { detailId }
+        };
+
+        var result = await DiscountPriceService.CreateDiscountPriceDetail(dto);
+
+        if (result != null)
+        {
+            Snackbar.Add("Áp dụng khuyến mãi thành công", Severity.Success);
+
+            existingDiscountDetail = await DiscountPriceService.GetDiscountPriceDetailById(detailId);
+            if (existingDiscountDetail != null && existingDiscountDetail.discountPriceId > 0)
+            {
+                DiscountPrices = await DiscountPriceService.GetDiscountPriceById(existingDiscountDetail.discountPriceId);
+            }
+
+            selectedDiscount = null;
+        }
+        else
+        {
+            Snackbar.Add("Áp dụng thất bại hoặc đã tồn tại", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+    private async Task DeleteColorAsync(int id)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá khuyến mãi có ID = {id} không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await DiscountPriceService.DeleteDiscountPriceDetailAsync(id);
+
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Xóa khuyến mãi thành công", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+
+        }
+    }
+}

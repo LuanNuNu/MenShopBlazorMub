@@ -1,24 +1,27 @@
-﻿@page "/product-detail/{ProductId:int}"
-@page "/product-detail/{ProductId:int}/{ProductName}"
-@page "/product-detail/{ProductId:int}/category={CategoryId:int}/{ProductName}"
-
+﻿@page "/chi-tiet-san-pham/{ProductId:int}"
+@page "/chi-tiet-san-pham/{ProductId:int}/{ProductName}"
+@page "/chi-tiet-san-pham/{ProductId:int}/category={CategoryId:int}/{ProductName}"
+@page "/chi-tiet-san-pham/{ProductId:int}/detail={DetailId:int}"
 
 @using MenShopBlazor.DTOs.Product.ViewModel
 @using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.DTOs.Cart
 @using MenShopBlazor.Shared
 @using MenShopBlazor.DTOs.Product
-@using MenShopBlazor.Services.Branch
 @using MenShopBlazor.Services.Product
+@using MenShopBlazor.Services.Cart
 @using MenShopBlazor.Services.Token
 @using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Services.Branch
 @inject IBranchService BranchService
 @inject ITokenService TokenService
 @inject IProductService ProductService
 @inject IAdminService AdminService
+@inject ICartService CartService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavManager
 @implements IDisposable
-
+@inject IJSRuntime JS
 
 
 
@@ -40,10 +43,11 @@
             <CustomerProductDetailView ProductDetails="productDetails"
                                        BreadcrumbItems="_items"
                                        ProductDescriptionHtml="ProductDescriptionHtml"
-                                       AddToCart="AddToCart"
+                                       AddToCart="OnAddToCartFromChild"
                                        NavigateToDetail="NavigateToDetail"
                                        ColorName="ColorName"
                                        RelatedProductColors="_relatedProducts" />
+
 
         }
     }
@@ -52,6 +56,7 @@
 
 @code {
     [Parameter] public int ProductId { get; set; }
+    [Parameter] public int? DetailId { get; set; }
     [Parameter] public string ProductName { get; set; } = "";
     [Parameter] public int CategoryId { get; set; }
     [Parameter] public int? BranchId { get; set; }
@@ -59,6 +64,7 @@
 
     private List<BreadcrumbItem> _items = new();
     private string? role;
+    private string? _userId;
     private bool _isLoggedIn = false;
     private bool _loading = false;
     private int _quantity = 1;
@@ -77,7 +83,8 @@
         await EnsureBranchIdAsync();
         role = await TokenService.GetRoleAsync();
         _isLoggedIn = !string.IsNullOrWhiteSpace(role);
-
+        _userId = await TokenService.GetUserIdAsync();
+        _isLoggedIn = !string.IsNullOrEmpty(_userId);
 
         await LoadProductDetailAsync();
         await LoadProductDescriptionAsync();
@@ -159,14 +166,24 @@
         ParseUrlQuery();
         await Task.Delay(400);
 
-        var res = await BranchService.GetBranchProductDetail(BranchId, ProductId);
+        var res = await BranchService.GetBranchProductDetailbyProductId(BranchId, ProductId);
         productDetails = res.Data ?? [];
 
-        selectedDetail = !string.IsNullOrWhiteSpace(ColorName)
-            ? productDetails.FirstOrDefault(x =>
+        if (DetailId.HasValue)
+        {
+            selectedDetail = productDetails.FirstOrDefault(d => d.DetailId == DetailId.Value)
+                             ?? productDetails.FirstOrDefault();
+        }
+        else if (!string.IsNullOrWhiteSpace(ColorName))
+        {
+            selectedDetail = productDetails.FirstOrDefault(x =>
                 string.Equals(x.ColorName, ColorName, StringComparison.OrdinalIgnoreCase))
-                ?? productDetails.FirstOrDefault()
-            : productDetails.FirstOrDefault();
+                ?? productDetails.FirstOrDefault();
+        }
+        else
+        {
+            selectedDetail = productDetails.FirstOrDefault();
+        }
 
         _quantity = 1;
         _loading = false;
@@ -187,21 +204,28 @@
 
         var detailTasks = branchProducts.Select(async product =>
         {
-            var detailRes = await BranchService.GetBranchProductDetail(BranchId.Value, product.ProductId);
+            var detailRes = await BranchService.GetBranchProductDetailbyProductId(BranchId.Value, product.ProductId);
             if (detailRes == null || !detailRes.IsSuccess) return [];
 
             var details = detailRes.Data ?? [];
-            return details
-                .GroupBy(d => d.ColorName)
-                .Select(g => new ProductColorViewModel
-                {
-                    ProductId = product.ProductId,
-                    ProductName = product.ProductName,
-                    CategoryProductID = product.CategoryProductID,
-                    ColorName = g.Key,
-                    Price = g.FirstOrDefault()?.SellPrice ?? product.Price,
-                    Thumbnail = g.FirstOrDefault()?.Images?.FirstOrDefault() ?? product.Thumbnail
-                }).ToList();
+            return details.Select(detail =>
+                           {
+                               var discount = detail.DiscountPercent ?? 0;
+                               var basePrice = detail.SellPrice ?? product.Price;
+                               var sellPrice = basePrice * (1 - discount / 100);
+
+                               return new ProductColorViewModel
+                               {
+                                   ProductId = product.ProductId,
+                                   ProductName = product.ProductName,
+                                   ColorName = detail.ColorName,
+                                   CategoryProductID = product.CategoryProductID,
+                                   Price = basePrice,
+                                   Thumbnail = detail.Images?.FirstOrDefault() ?? product.Thumbnail,
+                                   DiscountPercent = discount,
+                                   SellPrice = sellPrice
+                               };
+                           }).ToList();
         });
 
         var colorGroups = await Task.WhenAll(detailTasks);
@@ -218,15 +242,15 @@
         if (role == "Admin")
         {
             _items.Add(new BreadcrumbItem("Danh sách chi nhánh", href: "/list-branches", icon: Icons.Material.Filled.List));
-            _items.Add(new BreadcrumbItem($"Sản phẩm - {branchInfo?.Name ?? "Không rõ"}", href: "/branch-products", icon: Icons.Material.Filled.Storefront));
+            _items.Add(new BreadcrumbItem($"Sản phẩm - {branchInfo?.Name ?? "Không rõ"}", href: "/san-pham", icon: Icons.Material.Filled.Storefront));
         }
         else if (role == "BranchManager")
         {
-            _items.Add(new BreadcrumbItem($"Sản phẩm - {branchInfo?.Name ?? "Không rõ"}", href: "/branch-products", icon: Icons.Material.Filled.Storefront));
+            _items.Add(new BreadcrumbItem($"Sản phẩm - {branchInfo?.Name ?? "Không rõ"}", href: "/san-pham", icon: Icons.Material.Filled.Storefront));
         }
         else
         {
-            _items.Add(new BreadcrumbItem("Sản phẩm", href: "/branch-products", icon: Icons.Material.Filled.Storefront));
+            _items.Add(new BreadcrumbItem("Sản phẩm", href: "/san-pham", icon: Icons.Material.Filled.Storefront));
         }
 
         var productName = productDetails.FirstOrDefault()?.ProductName ?? "...";
@@ -234,14 +258,9 @@
     }
 
 
-    private void IncreaseQuantity() =>
-        _quantity = Math.Min(_quantity + 1, selectedDetail?.Quantity ?? _quantity);
 
-    private void DecreaseQuantity() =>
-        _quantity = Math.Max(1, _quantity - 1);
 
-    private void AddToCart() =>
-        Snackbar.Add($"Đã thêm {_quantity} vào giỏ hàng.", Severity.Success);
+
 
     private void NavigateToDetail(object item)
     {
@@ -269,5 +288,31 @@
         new(string.IsNullOrWhiteSpace(ProductDescription)
             ? ""
             : ProductDescription.Replace("\r\n", "<br/>").Replace("\n", "<br/>"));
+
+    private async Task OnAddToCartFromChild((int Quantity, BranchProductDetailModel Detail) cartInfo)
+    {
+        var (quantity, detail) = cartInfo;
+
+        string anonymousId = await JS.InvokeAsync<string>("localStorage.getItem", "anonymousId");
+        Console.WriteLine("Id nặc danh: " + anonymousId);
+        var cartRequest = new CartActionDTO
+        {
+            ProductDetailId = detail.DetailId ?? 0,
+            Quantity = quantity,
+            CustomerId = _isLoggedIn ? _userId : null,
+            AnonymousId = !_isLoggedIn ? anonymousId : null
+        };
+
+        var response = await CartService.AddToCartAsync(cartRequest);
+
+        if (!response.IsSuccess)
+            Snackbar.Add($"{response.Message}", Severity.Error);
+        else
+            Snackbar.Add("Đã thêm sản phẩm vào giỏ hàng", Severity.Success);
+
+        NavManager.NavigateTo("/cart");
+    }
+
+
 }
 

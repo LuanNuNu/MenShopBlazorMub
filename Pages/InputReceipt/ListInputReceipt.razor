@@ -1,0 +1,343 @@
+﻿@page "/list-input-receipts"
+
+@inject IInputReceiptService ReceiptService
+@inherits LayoutComponentBase
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+@using MenShopBlazor.DTOs.Receipt.InputReceipt
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.Extensions
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Shared
+@using MenShopBlazor.Services.InputReceiptService
+@inject ISnackbar Snackbar
+@inject ITokenService TokenService
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+@if (!_loading)
+{
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+
+            <MudDataGrid T="RowItem"
+                 Items="rowItems"
+                 Dense="true"
+                 Filterable="true"
+                 Hover="true"
+                 RowsPerPage="10"
+                 FilterMode="DataGridFilterMode.ColumnFilterRow"
+                 @bind-SelectedItem="selectedItem">
+
+        <Columns>
+            <PropertyColumn Property="x => x.rowItem.ReceiptId" Filterable="false" Title="MÃ PHIẾU NHẬP" />
+            <PropertyColumn Property="x => x.rowItem.ManagerName" Filterable="false" Title="QUẢN LÝ" />
+                <TemplateColumn Title="NGÀY TẠO">
+                    <CellTemplate>
+                        @if (context.Item.rowItem.CreatedDate.HasValue)
+                        {
+                            @context.Item.rowItem.CreatedDate?.ToString("dd/MM/yyyy")
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="NGÀY XÁC NHẬN">
+                    <CellTemplate>
+                        @if (context.Item.rowItem.ConfirmedDate.HasValue)
+                        {
+                            @context.Item.rowItem.ConfirmedDate?.ToString("dd/MM/yyyy")
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="NGÀY HỦY">
+                    <CellTemplate>
+                        @if (context.Item.rowItem.CancelDate.HasValue)
+                        {
+                            @context.Item.rowItem.CancelDate?.ToString("dd/MM/yyyy")
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+
+            <PropertyColumn Property="x => x.rowItem.StorageName" Filterable="false" Title="KHO HÀNG" />
+                <PropertyColumn Property="x => x.rowItem.Status" Title="TRẠNG THÁI">
+                    <CellTemplate>
+                        <MudIconButton Style="cursor: pointer"
+                                       Color="@GetStatusColor(context.Item.rowItem.Status)"
+                                       Variant="Variant.Filled">
+                            @GetStatusLabel(context.Item.rowItem.Status)
+                        </MudIconButton>
+                    </CellTemplate>
+                </PropertyColumn>
+                <TemplateColumn Title="TỔNG GIÁ TRỊ">
+                    <CellTemplate>
+                        @if (context.Item.rowItem.Total.HasValue)
+                        {
+                            @string.Format("{0:N0} ₫", context.Item.rowItem.Total)
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+
+            <TemplateColumn Title="Chi tiết | Hủy | Xác nhận" TextAlign="DataGridColumnAlign.Right">
+                <CellTemplate>
+                    <MudStack Row>
+                        <MudButton StartIcon="@Icons.Material.Filled.DataSaverOn"
+                                   Size="Size.Small"
+                                   Color="Color.Tertiary"
+                                   Class="ml-2"
+                                   OnClick="@(() => GoToDetailPage(context.Item.rowItem.ReceiptId))">
+                            CHI TIẾT
+                        </MudButton>
+                            @if (role == "Admin" || role == "RevenueManager" || role == "WarehouseManager")
+                            {
+                                @if (context.Item.rowItem.Status != Extensions.OrderStatus.Cancelled && context.Item.rowItem.Status != Extensions.OrderStatus.Completed)
+                                {
+                                    <MudButton StartIcon="@Icons.Material.Outlined.Delete"
+                                    Size="Size.Small"
+                                    Color="Color.Error"
+                                    Class="ml-2"
+                                    OnClick="@(() => ConfirmCancel(context.Item.rowItem.ReceiptId))">
+                                        Huỷ
+                                    </MudButton>
+
+                                    <MudButton  StartIcon="@Icons.Material.Filled.Check"
+                                    Size="Size.Small"
+                                    Color="Color.Success"
+                                    Class="ml-2"
+                                    OnClick="@(() => ConfirmReceipt(context.Item.rowItem.ReceiptId))">
+                                        Xác nhận
+                                    </MudButton>
+                                }
+                            }
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+
+        <PagerContent>
+            <MudDataGridPager T="RowItem" />
+        </PagerContent>
+    </MudDataGrid>
+    @if (role == "Admin" || role == "RevenueManager" || role == "WarehouseManager")
+    {
+            <MudButton Color="Color.Primary" Variant="Variant.Outlined"
+                   OnClick="OpenCreateDialog" StartIcon="@Icons.Material.Filled.Add" Class="mt-2 mb-3">
+            Thêm phiếu nhập
+        </MudButton>
+    }
+    </MudContainer>
+
+}
+
+
+@code
+{
+    private bool _loading = false;
+    IEnumerable<InputReceiptDTO> listReceipts = [];
+    List<RowItem> rowItems = [];
+    private RowItem? selectedItem;
+    private string searchString1 = "";
+    private string? role;
+    private HashSet<RowItem> selectedItems = new HashSet<RowItem>();
+
+    private IEnumerable<RowItem> Elements = new List<RowItem>();
+    private bool FilterFunc1(RowItem element) => FilterFunc(element, searchString1);
+
+    private bool FilterFunc(RowItem element, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        searchString = searchString.Trim();
+        var receipt = element.rowItem;
+
+        if (receipt.Status?.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (receipt.ReceiptId.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (receipt.CreatedDate?.ToString("dd/MM/yyyy").Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (receipt.ConfirmedDate?.ToString("dd/MM/yyyy").Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (receipt.CancelDate?.ToString("dd/MM/yyyy").Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (!string.IsNullOrEmpty(receipt.ManagerName) &&
+            receipt.ManagerName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!string.IsNullOrEmpty(receipt.StorageName) &&
+            receipt.StorageName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    private MudDialog? cancelDialogRef;
+    private MudDialog? confirmDialogRef;
+    private List<BreadcrumbItem> _items = new();
+
+    private void GoToDetailPage(int ReceiptId)
+    {
+        Navigation.NavigateTo($"/input-receipt-detail/{ReceiptId}");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        role = await TokenService.GetRoleAsync();
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Phiếu nhập", href: null,disabled:true, icon: Icons.Material.Filled.List),
+        };
+        await ReloadData();
+    }
+
+
+
+    private async Task ConfirmCancel(int receiptId)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn hủy phiếu nhập = {receiptId} không?" },
+            { "ButtonText", "Xác nhận" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await ReceiptService.CancelReceiptAsync(receiptId);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add(response.Message, Severity.Success);
+                await ReloadData();
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+
+    }
+
+    private async Task ConfirmReceipt(int receiptId)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn muốn xác nhận phiếu nhập = {receiptId}?" },
+            { "ButtonText", "Xác nhận" },
+            { "Color", Color.Info }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium };
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận hủy", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await ReceiptService.ConfirmReceiptAsync(receiptId);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add(response.Message, Severity.Success);
+                await ReloadData();
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+    }
+    private async Task ReloadData()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = ReceiptService.GetAllInputReceiptsAsync();
+        var delayTask = Task.Delay(1000);
+
+        await Task.WhenAll(loadTask, delayTask);
+
+        var response = await loadTask;
+        if (response.IsSuccess && response.Data is not null)
+        {
+            listReceipts = response.Data;
+            rowItems = listReceipts.Select(r => new RowItem { rowItem = r }).ToList();
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    class RowItem
+    {
+        public bool ShowDetail = false;
+        public InputReceiptDTO rowItem {get; set;}
+        public int rowNumber { get; set; }
+    }
+    private void ShowBtnPress(RowItem rowItem)
+    {
+        RowItem item = rowItem;
+        item.ShowDetail = !item.ShowDetail;
+    }
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        var dialog = DialogService.Show<CreateInputReceipt>("TẠO PHIẾU NHẬP", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await ReloadData();
+        }
+    }
+
+    private Color GetStatusColor(OrderStatus? status)
+    {
+        return status switch
+        {
+            OrderStatus.Created => Color.Warning,
+            OrderStatus.Pending => Color.Warning,
+            OrderStatus.Confirmed => Color.Primary,
+            OrderStatus.Paid => Color.Info,
+            OrderStatus.Delivering => Color.Secondary,
+            OrderStatus.Completed => Color.Success,
+            OrderStatus.Cancelled => Color.Error,
+            OrderStatus.Returned => Color.Error,
+            null => Color.Dark,
+            _ => Color.Default
+        };
+    }
+
+    private string GetStatusLabel(OrderStatus? status)
+    {
+        return status switch
+        {
+            OrderStatus.Created => "Mới",
+            OrderStatus.Pending => "Chờ xác nhận",
+            OrderStatus.Confirmed => "Đã xác nhận",
+            OrderStatus.Paid => "Đã thanh toán",
+            OrderStatus.Delivering => "Đang giao",
+            OrderStatus.Completed => "Hoàn thành",
+            OrderStatus.Cancelled => "Đã hủy",
+            OrderStatus.Returned => "Đã trả hàng",
+            null => "Chưa xác định",
+            _ => "Không rõ"
+        };
+    }
+}

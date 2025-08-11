@@ -1,0 +1,149 @@
+﻿@page "/collection-product/{collectionId:int}"
+
+@using MenShopBlazor.DTOs.Collection
+@using MenShopBlazor.DTOs.Collection.ViewModel
+@using MenShopBlazor.DTOs.Storage
+@using MenShopBlazor.DTOs.Product.ViewModel
+
+@using MenShopBlazor.Services.Collection
+@using MenShopBlazor.Services.CollectionService
+@using MenShopBlazor.Services.Storage
+@inject ICollectionService CollectionService
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+@using MenShopBlazor.Shared
+@using MudBlazor
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+        <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+        <MudGrid>
+    @if (!_loading)
+    {
+            <MudItem xs="12">
+                <MudDataGrid T="CollectionDetailsViewModel"
+                             Items="@productDetails"
+                             RowsPerPage="7"
+                             Dense="true"
+                             Filterable="true"
+                             FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                    <Columns>
+                        <PropertyColumn Property="x => x.ProductId" Title="Mã Sản Phẩm" />
+                        <PropertyColumn Property="x => x.ProductName" Title="Tên Sản Phẩm" />
+                        <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                            <CellTemplate>
+                                <MudStack Row>
+                                    <MudButton StartIcon="@Icons.Material.Outlined.Delete"
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               Class="ml-2"
+                                               OnClick="@(() => DeleteColorAsync(context.Item.CollectionDetailId))">
+                                        Xoá
+                                    </MudButton>
+                                </MudStack>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+
+                    <PagerContent>
+                        <MudDataGridPager T="CollectionDetailsViewModel" />
+                    </PagerContent>
+                </MudDataGrid>
+                <MudButton Color="Color.Primary" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           Class="mt-3"
+                           OnClick="@(() => OpenCreateDialog(collectionId))">
+                    Thêm chi tiết
+                </MudButton>
+            </MudItem>
+        }
+        </MudGrid>
+        
+    </MudContainer>
+
+
+@code {
+    [Parameter] public int collectionId { get; set; }
+    private List<CollectionDetailsViewModel> productDetails = new();
+    private List<BreadcrumbItem> _items = new();
+    private bool _loading = false;
+    protected override async Task OnInitializedAsync()
+    {
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Bộ Sưu Tập", href: "/list-collections", icon: Icons.Material.Filled.List),
+            new BreadcrumbItem($"Chi Tiết Bộ Sưu Tập", href: null, disabled:true, icon: Icons.Material.Filled.List),
+        };
+
+        loadpage();
+    }
+    private async Task loadpage()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = CollectionService.GetCollectionDetails(collectionId);
+
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
+
+        productDetails = loadTask.Result.Data;
+
+        _loading = false;
+        StateHasChanged();
+    }
+    private void GoToDetailPage(int productId)
+    {
+        Navigation.NavigateTo($"/collection-product-detail/{productId}");
+    }
+    private async Task OpenCreateDialog(int collectionId)
+    {
+        var parameters = new DialogParameters { { "CollectionId", collectionId } };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<CreateCollectionDetail>("TẠO CHI TIẾT BỘ SƯU TẬP", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await loadpage();
+        }
+
+    }
+
+    private async Task DeleteColorAsync(int collectionDetailDTO)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Bạn có chắc muốn xoá chi tiết bộ sưu tập có ID = {collectionDetailDTO} không?" },
+            { "ButtonText", "Xoá" },
+            { "Color", Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+
+        var dialog = DialogService.Show<ConfirmDeleteDialog>("Xác nhận xoá", parameters, options);
+        var result = await dialog.Result;
+
+
+        var response = await CollectionService.DeleteCollectionDetail(collectionDetailDTO);
+
+        if (!result.Canceled)
+        {
+            if (response.IsSuccess)
+            {
+                Snackbar.Add(response.Message, Severity.Success);
+                await loadpage();
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+
+    }
+}

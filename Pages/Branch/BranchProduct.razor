@@ -1,6 +1,6 @@
-﻿@page "/"
-@page "/branch-products"
-@page "/branch-products/{BranchId:int}"
+﻿
+@page "/san-pham"
+@page "/san-pham/{BranchId:int}"
 
 @using MenShopBlazor.DTOs.Branch
 @using MenShopBlazor.DTOs
@@ -16,7 +16,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager NavManager
 @implements IDisposable
-
+@inject BranchHelper BranchHelper
 
 <MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
     <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
@@ -24,7 +24,7 @@
 
 @if (!_loading)
 { 
-    @if (role == "Admin" || role == "BranchManager")
+    @if (role == "Admin" || role == "BranchManager" || role == "BranchEmployee")
     {
         <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
             <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
@@ -70,6 +70,21 @@
             <ProductCard Products="productColors"
                          OnCardClick="NavigateToDetail"
                          ShowScrollToTop="false" />
+            @if (hasMore)
+            {
+                <div class="text-center my-4">
+                    <MudButton OnClick="LoadMore" Disabled="isLoadingMore">
+                        @if (isLoadingMore)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        }
+                        else
+                        {
+                            <span>Xem thêm</span>
+                        }
+                    </MudButton>
+                </div>
+            }
         </MudContainer>
     }
 
@@ -87,6 +102,11 @@
     private List<BreadcrumbItem> _items = new();
     private List<ProductColorViewModel> productColors = new();
     [Parameter] public int? CategoryId { get; set; }
+    private int page = 1;
+    private int pageSize = 10;
+    private bool isLoadingMore = false;
+    private bool hasMore = true;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -202,26 +222,8 @@
         if (BranchId != null && BranchId > 0)
             return;
 
-        if (role == "Customer")
-        {
-            var branches = await BranchService.GetAllBranchesAsync();
-            var onlineBranch = branches?.Data?.FirstOrDefault(b => b.IsOnline);
-            if (onlineBranch != null)
-            {
-                BranchId = onlineBranch.BranchId;
-                return;
-            }
-        }
-        else if (!string.IsNullOrEmpty(role)) 
-        {
-            var userResponse = await AdminService.GetCurrentUserAsync();
-            var user = userResponse?.Data;
-            if (user?.BranchId != null)
-            {
-                BranchId = user.BranchId;
-            }
-        }
-    }
+        BranchId = await BranchHelper.GetBranchIdAsync(role);
+    }   
 
 
     /// <summary>
@@ -246,42 +248,71 @@
 
             var list = response.Data ?? [];
 
- 
             if (CategoryId.HasValue)
             {
                 list = list.Where(p => p.CategoryProductID == CategoryId.Value).ToList();
             }
 
-            products = list;
 
-                var detailTasks = list.Select(async product =>
+            var paginatedList = list.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            if (paginatedList.Count < pageSize) hasMore = false;
+
+
+            if (page == 1)
+                products = paginatedList;
+            else
+                products.AddRange(paginatedList);
+
+            var detailTasks = paginatedList.Select(async product =>
+            {
+                var detailRes = await BranchService.GetBranchProductDetailbyProductId(BranchId, product.ProductId);
+                if (detailRes == null || !detailRes.IsSuccess) return new List<ProductColorViewModel>();
+
+                var details = detailRes.Data ?? [];
+
+                return details.Select(detail =>
                 {
-                    var detailRes = await BranchService.GetBranchProductDetail(BranchId, product.ProductId);
-                    if (detailRes == null || !detailRes.IsSuccess) return new List<ProductColorViewModel>();
+                 var discount = detail.DiscountPercent ?? 0;
+                 var basePrice = detail.SellPrice ?? product.Price;
+                 var sellPrice = basePrice * (1 - discount / 100);
 
-                    var details = detailRes.Data ?? [];
+                 return new ProductColorViewModel
+                 {
+                     ProductDetailId = detail.DetailId,
+                     ProductId = product.ProductId,
+                     ProductName = product.ProductName,
+                     ColorName = detail.ColorName,
+                     CategoryProductID = product.CategoryProductID,
+                     Price = basePrice,
+                     Thumbnail = detail.Images?.FirstOrDefault() ?? product.Thumbnail,
+                     DiscountPercent = discount,
+                     SellPrice = sellPrice
+                 };
+                }).ToList();
 
-                    return details
-                        .GroupBy(d => d.ColorName)
-                        .Select(g => new ProductColorViewModel
-                        {
-                            ProductId = product.ProductId,
-                            ProductName = product.ProductName,
-                            ColorName = g.Key,
-                            CategoryProductID = product.CategoryProductID,
-                            Price = g.FirstOrDefault()?.SellPrice ?? product.Price,
-                            Thumbnail = g.FirstOrDefault()?.Images?.FirstOrDefault() ?? product.Thumbnail
-                        }).ToList();
-                });
 
-                var colorGroups = await Task.WhenAll(detailTasks);
+            });
+
+            var colorGroups = await Task.WhenAll(detailTasks);
+            if (page == 1)
                 productColors = colorGroups.SelectMany(x => x).ToList();
-            
+            else
+                productColors.AddRange(colorGroups.SelectMany(x => x));
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
         }
+    }
+
+    private async Task LoadMore()
+    {
+        if (isLoadingMore || !hasMore) return;
+
+        isLoadingMore = true;
+        page++;
+        await LoadBranchProductsAsync();
+        isLoadingMore = false;
     }
 
 

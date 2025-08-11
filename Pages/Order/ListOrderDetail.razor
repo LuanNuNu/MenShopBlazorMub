@@ -1,0 +1,304 @@
+﻿@page "/list-order-detail/{OrderId}"
+
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Order
+@using MenShopBlazor.DTOs.Payment
+@using MenShopBlazor.Services.Order
+@using MenShopBlazor.Services.Payment
+@using MenShopBlazor.Extensions
+@using MenShopBlazor.Services.Token
+@inject ITokenService TokenService
+@inject IPaymentService PaymentService
+@inject IOrderService OrderService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+
+    @if(role == "Customer")
+    {
+        <MudContainer Class=" px-8">
+            <MudPaper Class="pa-4">
+                <MudItem Class="mb-3 pa-4">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.subtitle1" Class="fw-bold">
+                            Mã hóa đơn: @OrderId
+                        </MudText>
+                        <MudText Typo="Typo.subtitle1" Class="fw-bold">
+                            Ngày đặt: @orderSummary.CreatedDate?.ToString("dd/MM/yyyy")
+                        </MudText>
+                        <MudText Typo="Typo.subtitle1" Class="fw-bold">
+                            Trạng thái: @GetOrderStatusText(orderSummary.Status)
+                        </MudText>
+
+                        <MudDivider Class="my-2" />
+
+                        <MudText Typo="Typo.h5" Class="mb-4">Thông tin người nhận hàng</MudText>
+                        <MudDivider Class="my-2" />
+                        <MudItem Class="pa-2 mb-2">
+                            <MudGrid>
+                                <MudItem xs="12" sm="8">
+                                    <MudStack Spacing="2" Class="mt-2">
+                                        <MudItem class="d-flex justify-content-between">
+                                            <MudText Typo="Typo.subtitle2">Tên người nhận</MudText>
+                                            <MudText Typo="Typo.subtitle1"><b>@orderSummary.ReceiverName</b></MudText>
+                                        </MudItem>
+                                        <MudItem class="d-flex justify-content-between">
+                                            <MudText Typo="Typo.subtitle2">Số điện thoại</MudText>
+                                            <MudText Typo="Typo.subtitle1"><b>@orderSummary.ReceiverPhone</b></MudText>
+                                        </MudItem>
+                                        <MudItem>
+                                            <MudText Typo="Typo.subtitle2">Địa chỉ nhận hàng</MudText>
+                                            <MudText Typo="Typo.subtitle1"><b>@orderSummary.Address</b></MudText>
+                                        </MudItem>
+
+
+                                    </MudStack>
+                                </MudItem>
+                            </MudGrid>
+                        </MudItem>
+
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.h5" Class="mb-4">Chi tiết đơn hàng</MudText>
+
+                        @foreach (var detail in orderDetails)
+                        {
+                            <MudDivider Class="my-2" />
+                            <MudItem Class="pa-2 mb-2">
+                                <MudGrid>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText Typo="Typo.body2">
+                                            <b>@detail.ProductName @detail.DetailId</b> / @detail.ColorName, @detail.SizeName
+                                        </MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" Class="d-flex justify-end">
+                                        <MudText Typo="Typo.body2">
+                                            @string.Format("{0:N0}", detail.SellPrice) đ x @detail.Quantity
+                                        </MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" Class="d-flex justify-end">
+                                        <MudText Typo="Typo.body2" Color="Color.Primary">
+                                            = @string.Format("{0:N0}", (detail.SellPrice * detail.Quantity))
+                                        </MudText>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudItem>
+                        }
+
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.h6">Hóa đơn</MudText>
+                        <MudGrid Justify="Justify.Center">
+                            <MudItem xs="12" sm="6">
+                                    <MudStack Spacing="1">
+                                        <MudItem class="d-flex justify-content-between">
+                                            <MudText>Tổng giá trị sản phẩm:</MudText>
+                                            <MudText>@string.Format("{0:N0}", orderSummary.Subtotal) đ</MudText>
+                                        </MudItem>
+
+                                        <MudItem class="d-flex justify-content-between">
+                                            <MudText>Phí vận chuyển:</MudText>
+                                            <MudText>@string.Format("{0:N0}", orderSummary.ShippingFee) đ</MudText>
+                                        </MudItem>
+
+                                        <MudItem class="d-flex justify-content-between fw-bold">
+                                            <MudText>Tổng hóa đơn:</MudText>
+                                            <MudText>
+                                                @string.Format("{0:N0}", (orderSummary.Subtotal ?? 0) + (orderSummary.ShippingFee ?? 0)) đ
+                                            </MudText>
+                                        </MudItem>
+
+                                        <MudItem class="d-flex justify-content-between">
+                                            <MudText>Đã thanh toán:</MudText>
+                                            <MudText>
+                                                @if (orderSummary.PaidDate != null)
+                                                {
+                                                    @string.Format("{0:N0} đ", payment.Amount)
+                                                }
+                                                else
+                                                {
+                                                    <text>0 đ</text>
+                                                }
+                                            </MudText>
+                                        </MudItem>
+
+                                        <MudItem class="d-flex justify-content-between">
+                                            <MudText Color="Color.Warning">Phải trả:</MudText>
+                                            <MudText>
+                                                @string.Format("{0:N0}", ((orderSummary.Subtotal ?? 0) + (orderSummary.ShippingFee ?? 0)) - (orderSummary.PaidDate != null ? payment.Amount : 0)) đ
+                                            </MudText>
+                                        </MudItem>
+                                    </MudStack>
+                            </MudItem>
+                        </MudGrid>
+                    </MudStack>
+                </MudItem>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@ReturnOder">Quay lại</MudButton>
+            </MudPaper>
+        </MudContainer>
+    }
+    else
+    {  
+        <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+            <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH HÓA ĐƠN</MudText>
+
+                    <MudDataGrid T="OrderProductDetailViewModel"
+                                 Items="@orderDetails"
+                                 RowsPerPage="8"
+                                 Dense="true"
+                                 Filterable="true"
+                                 FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                        <Columns>
+                            <PropertyColumn Property="x => x.DetailId" Title="MÃ CHI TIẾT" />
+                            <PropertyColumn Property="x => x.SizeName" Title="SIZE" />
+                            <PropertyColumn Property="x => x.ProductName" Title="SIZE" />
+                            <PropertyColumn Property="x => x.ColorName" Title="MÀU" />
+                            <PropertyColumn Property="x => x.FabricName" Title="CHẤT LIỆU" />
+                            <TemplateColumn Title="GIÁ SẢN PHẨM">
+                                <CellTemplate>
+                                    @if (context.Item.SellPrice.HasValue)
+                                    {
+                                        @string.Format("{0:N0} ₫", context.Item.SellPrice)
+                                    }
+                                </CellTemplate>
+
+                            </TemplateColumn>
+                            <PropertyColumn Property="x => x.Quantity" Title="SỐ LƯỢNG" />
+
+                        </Columns>
+
+                        <PagerContent>
+                            <MudDataGridPager T="OrderProductDetailViewModel" />
+                        </PagerContent>
+                    </MudDataGrid>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    }
+
+
+@code {
+
+    [Parameter] public string OrderId { get; set; } 
+    private List<BreadcrumbItem> _items = new();
+    private List<OrderProductDetailViewModel> orderDetails = new();
+    private OrderViewModel orderSummary = new();
+    private PaymentViewModel payment = new();
+    private bool _loading = false;
+    private string? role;
+    private CancellationTokenSource _cts = new();
+    private bool _disposed = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(OrderId))
+            return;
+        OrderId = Navigation.Uri.Split('/').Last();
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+
+        try
+        {
+            _loading = true;
+            StateHasChanged();
+
+            role = await TokenService.GetRoleAsync();
+
+            orderSummary = await OrderService.GetOrderByIdAsync(OrderId);
+            if (orderSummary == null)
+            {
+                Snackbar.Add("Không tìm thấy đơn hàng.", Severity.Warning);
+                return;
+            }
+
+            payment = await PaymentService.GetPaymentByOrderIdAsync(OrderId) ?? new PaymentViewModel();
+
+            _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Đơn hàng", href: role == "Customer" ? "/profile/orders" : "/list-order", icon: Icons.Material.Filled.List),
+            new BreadcrumbItem($"Chi tiết đơn hàng {OrderId}", href: null, disabled: true, icon: Icons.Material.Filled.Info)
+        };
+
+            await LoadOrderDetailsAsync(_cts.Token);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi khi khởi tạo dữ liệu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadOrderDetailsAsync(CancellationToken token)
+    {
+        try
+        {
+            _loading = true;
+            StateHasChanged();
+
+            var detailList = await OrderService.GetOrderDetailAsync(OrderId);
+
+            if (detailList == null || !detailList.Any())
+            {
+                Snackbar.Add("Không tìm thấy chi tiết đơn hàng.", Severity.Warning);
+                orderDetails = new();
+            }
+            else
+            {
+                orderDetails = detailList;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Lỗi khi tải chi tiết đơn hàng: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+    private void ReturnOder()
+    {
+        Navigation.NavigateTo($"/profile/orders");
+    }
+
+
+    public void Dispose()
+    {
+        _disposed = true;   
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+
+
+    private string GetOrderStatusText(OrderStatus? status)
+    {
+        return status switch
+        {
+            OrderStatus.Created => "Đơn hàng mới tạo",
+            OrderStatus.Pending => "Chờ xác nhận",
+            OrderStatus.Confirmed => "Đã xác nhận",
+            OrderStatus.Cancelled => "Đã hủy",
+            OrderStatus.Paid => "Đã thanh toán",
+            OrderStatus.Delivering => "Đang giao hàng",
+            OrderStatus.Completed => "Đã hoàn thành",
+            OrderStatus.Returned => "Đã hoàn trả",
+            _ => "Không xác định"
+        };
+    }
+
+}

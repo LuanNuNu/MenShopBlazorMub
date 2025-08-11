@@ -1,11 +1,16 @@
 ﻿@using MenShopBlazor.Services.Branch;
 @using MenShopBlazor.DTOs.Branch;
+@using MenShopBlazor.Shared
+@using MenShopBlazor.DTOs.AddressDTO;
 @using MenShopBlazor.Services.Admin;
 @using MenShopBlazor.DTOs.Product;
 @inject IBranchService BranchService
 @inject IAdminService AdminService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
 
 <MudDialog MaxWidth="MaxWidth.Small" MaxHeight="unset" Style="overflow-y:hidden;">
     <DialogContent>
@@ -19,13 +24,14 @@
                       Margin="Margin.Dense"
                       Variant="Variant.Outlined" />
 
-        <MudTextField @bind-Value="branch.Address"
-                      Label="Địa chỉ"
+        <AddressSelector Value="@branch.Address" ValueChanged="v => branch.Address = v" />
+        <MudTextField @bind-Value="branch.Address.Street"
+                      Label="Số nhà/Tên đường"
                       Required="true"
-                      Immediate="true"
-                      For="@(() => branch.Address)"
+                      RequiredError="Vui lòng nhập Số nhà/Tên đường"
                       Margin="Margin.Dense"
                       Variant="Variant.Outlined" />
+
         <MudRadioGroup T="bool" @bind-Value="branch.IsOnline">
             <MudRadio Value="true" Label="Chi nhánh Online" />
             <MudRadio Value="false" Label="Chi nhánh Offline" />
@@ -43,13 +49,12 @@
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; }
 
-    private CreateUpdateBranchDTO branch = new();
-
-
-    protected override async Task OnInitializedAsync()
+    private CreateUpdateBranchDTO branch = new()
     {
+        Address = new AddressInfo()
+    };
 
-    }
+
 
     private async Task CreateBranchAsync()
     {
@@ -58,12 +63,16 @@
             Snackbar.Add("Tên chi nhánh không được để trống", Severity.Warning);
             return;
         }
-        if (string.IsNullOrWhiteSpace(branch.Address))
+        if (
+            string.IsNullOrWhiteSpace(branch.Address.ProvinceName) ||
+            string.IsNullOrWhiteSpace(branch.Address.DistrictName) ||
+            string.IsNullOrWhiteSpace(branch.Address.WardName))
         {
-            Snackbar.Add("Địa chỉ không được để trống", Severity.Warning);
+            Snackbar.Add("Vui lòng điền đầy đủ thông tin địa chỉ!", Severity.Warning);
             return;
         }
         Console.WriteLine("Tên chi nhánh: " + branch.Name);
+        branch.Address = branch.Address;
         var response = await BranchService.CreateBranchAsync(branch);
         if (response.IsSuccess)
         {

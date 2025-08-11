@@ -1,0 +1,370 @@
+﻿@page "/cart"
+
+@using MenShopBlazor.Shared
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Cart
+@using MenShopBlazor.DTOs.Branch
+@using MenShopBlazor.Services.Branch
+@using MenShopBlazor.Services.Admin
+@using MenShopBlazor.Services.Token
+@using MenShopBlazor.Services.Cart
+@inject IBranchService BranchService
+@inject ITokenService TokenService
+@inject IAdminService AdminService
+@inject ICartService CartService
+@inject IBranchService BranchService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
+@inject BranchHelper BranchHelper
+@inject CartState CartState
+@implements IDisposable
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+@if (!_loading)
+{
+<MudContainer Class="mt-5 px-8">
+    <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+    <MudGrid>
+        @if (CartItems?.Any() == true)
+        {
+ 
+            <MudItem xs="12" sm="8">
+                @foreach (var item in CartItems)
+                {
+                    <MudPaper Class="p-3 mb-2 d-flex" Elevation="1">
+                            <MudAvatar Rounded="true" Class="me-4" Style="width: 96px; height: 110px;">
+                                <MudImage Class="object-fit-cover" Src="@item.Images?.FirstOrDefault()" />
+                            </MudAvatar>
+                            
+                        <MudStack Spacing="1">
+                                <MudText Typo="Typo.subtitle2">@item.ProductName</MudText>
+                                <MudText Typo="Typo.body2">Size: @item.SizeName | Màu: @item.ColorName | Chất liệu: @item.FabricName</MudText>
+                                <MudStack Row="true" Class="my-4 d-flex align-items-center" Spacing="1">
+                                    @if (item.DiscountPercent > 0)
+                                    {
+
+                                        <MudText Typo="Typo.body1" Style="@($"color:{Colors.Gray.Lighten1};")" Class="text-decoration-line-through">
+                                            @string.Format("{0:N0} ₫", item.SellPrice)
+                                        </MudText>
+
+                                        <MudText Typo="Typo.body1" Class="ms-2">
+                                            <strong>
+                                                @string.Format("{0:N0} ₫", item.DiscountedPrice)
+                                            </strong>
+                                        </MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.body2">
+                                            Giá:  @string.Format("{0:N0} ₫", item.SellPrice)</MudText>
+                                    }
+                                    @if (item.DiscountPercent > 0)
+                                    {
+                                        <MudText Typo="Typo.body2" Class="ms-2" Style="@($"color:{Colors.Red.Lighten1};")">
+                                            - @item.DiscountPercent.Value.ToString("N0")%
+                                        </MudText>
+                                    }
+                                </MudStack>
+                                <MudText Typo="Typo.subtitle1">Số lượng:</MudText>
+                                <MudPaper Class="d-flex align-items-center" Style="width: fit-content;">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => UpdateQuantity(item, (item.Quantity ?? 0) - 1))"
+                                                   Disabled="item.Quantity <= 1" />
+
+                                    <MudText Class="mx-2">@item.Quantity</MudText>
+
+                                    <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => UpdateQuantity(item, (item.Quantity ?? 0) + 1))"
+                                                   Disabled="(item.Quantity ?? 0) >= (item.StockQuantity ?? int.MaxValue)" />
+
+
+
+                                </MudPaper>
+
+                        </MudStack>
+                            <MudSpacer />
+
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"  
+                                           OnClick="@(() => RemoveItemFromCart(item))"
+                                           Style="width: fit-content; height: fit-content" />
+
+                    </MudPaper>
+
+                }
+            </MudItem>
+
+            <MudItem xs="12" sm="4">
+                <MudPaper Class="p-4">
+                    <MudText Typo="Typo.h6" Class="mb-2">TỔNG CỘNG</MudText>
+                    <MudDivider Class="mb-2" />
+
+                    <MudStack Spacing="2" Class="mt-2">
+                            <MudItem class="d-flex justify-content-between">
+                                <MudText Typo="Typo.subtitle2">Giá trị đơn hàng:</MudText>
+                                <MudText Typo="Typo.subtitle2"><b>@(CartItems.Sum(x => (x.SellPrice ?? 0) * (x.Quantity ?? 0)).ToString("N0")) đ</b></MudText>
+                            </MudItem>
+
+                            <MudItem class="d-flex justify-content-between">
+                                <MudText Typo="Typo.subtitle2">Tổng số lượng:</MudText>
+                                <MudText Typo="Typo.subtitle2"><b>@totalQuantity</b></MudText>
+                            </MudItem>
+
+                            <MudItem class="d-flex justify-content-between">
+                                <MudText Typo="Typo.subtitle2" Style="@($"color:{Colors.Red.Lighten2};")">Giảm giá:</MudText>
+                                <MudText Typo="Typo.subtitle2" Style="@($"color:{Colors.Red.Lighten2};")">
+                                    <b>- @TotalDiscount.ToString("N0") đ</b>
+                                </MudText>
+                            </MudItem>
+                        <MudDivider Class="my-2" />
+
+                        <MudItem class="d-flex justify-content-between">
+                            <MudText Typo="Typo.subtitle2"><b>Tổng tiền:</b></MudText>
+                            <MudText Typo="Typo.subtitle2"><b>@TotalAfterDiscount.ToString("N0") đ</b></MudText>
+                        </MudItem>
+
+                    </MudStack>
+
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-4" FullWidth="true" OnClick="@HandleCheckout">
+                        Thanh toán ngay
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+
+        }
+        else
+        {
+            <MudItem xs="12" Class="d-flex flex-column align-items-center justify-content-center text-center mt-8">
+                <MudText Typo="Typo.h5" Class="mb-4">Bạn chưa có sản phẩm trong giỏ hàng</MudText>
+
+                <MudImage Src="imgs/no-cart.png" Alt="Giỏ hàng trống"
+                          Class="rounded-lg mb-4"
+                          Style="width: 300px; max-width: 90%;" />
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="NavigateToProducts">
+                    Dạo một vòng mua sắm nào!
+                </MudButton>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+}
+
+@code {
+    private bool _loading = false;
+    private string? role;
+    private int? BranchId;
+    private bool _isLoggedIn = false;
+    private List<CartDetailViewModel> CartItems = new();
+
+    private decimal TotalPrice => CartItems.Sum(x => x.SellPrice.GetValueOrDefault() * x.Quantity.GetValueOrDefault());
+    private decimal TotalDiscount => CartItems.Sum(x =>
+        ((x.SellPrice ?? 0) - (x.DiscountedPrice ?? x.SellPrice ?? 0)) * (x.Quantity ?? 0));
+    private decimal TotalAfterDiscount => CartItems.Sum(x =>
+        (x.DiscountedPrice ?? x.SellPrice ?? 0) * (x.Quantity ?? 0));
+    private int totalQuantity => CartItems?.Sum(item => item.Quantity) ?? 0;
+
+    private List<BreadcrumbItem> _items = new();
+    private CartDetailViewModel? SelectedDetail { get; set; }
+
+    private string customerId = "";
+    private string anonymousId = "";
+
+    protected override void OnInitialized()
+    {
+        CartState.OnChange += OnCartChanged;
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Giỏ hàng của bạn", href: "/cart", icon: Icons.Material.Filled.List),
+        };
+    }
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadCartAsync(showLoading: true, useDelay: true);
+    }
+
+    private async Task<(string? CustomerId, string AnonymousId)> GetIdsAsync()
+    {
+        var tokenInfo = await TokenService.GetTokenInfoAsync();
+        var custId = tokenInfo?.UserId;
+        var anonId = string.IsNullOrEmpty(custId) ? await GetOrCreateAnonymousIdAsync() : "";
+        return (custId, anonId);
+    }
+
+    private async Task LoadCartAsync(bool showLoading = true, bool useDelay = false)
+    {
+        if (showLoading)
+        {
+            _loading = true;
+            StateHasChanged();
+        }
+
+        var (custId, anonId) = await GetIdsAsync();
+        customerId = custId ?? "";
+        anonymousId = anonId;
+
+        Console.WriteLine($"anonymousId now:  {anonymousId}");
+
+        var loadCartTask = CartService.GetCartAsync(customerId, anonymousId);
+        Task delayTask = useDelay ? Task.Delay(1000) : Task.CompletedTask;
+
+        await Task.WhenAll(loadCartTask, delayTask);
+
+        var result = loadCartTask.Result;
+
+        if (result?.IsSuccess == true)
+        {
+            CartItems = result.Data?.Details?.ToList() ?? new List<CartDetailViewModel>();
+            CartState.SetItems(CartItems);
+            Console.WriteLine($"Cart IsSuccess: {result?.IsSuccess}");
+            Console.WriteLine($"Cart Items count: {result?.Data?.Details?.Count}");
+            Console.WriteLine($"First item: {result?.Data?.Details?.FirstOrDefault()?.ProductName}");
+            await RefreshCartItemsPriceAsync();
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task RefreshCartItemsPriceAsync()
+    {
+        if (CartItems == null || CartItems.Count == 0)
+            return;
+
+        foreach (var item in CartItems)
+        {
+            var response = await BranchService.GetBranchProductDetailAsync(branchId: BranchId ?? 0, productDetailId: item.DetailId);
+            if (response.IsSuccess && response.Data != null)
+            {
+                var detail = response.Data;
+                item.SellPrice = detail.SellPrice;
+                item.DiscountedPrice = detail.DiscountedPrice;
+                item.DiscountPercent = detail.DiscountPercent;
+                item.StockQuantity = detail.Quantity;
+            }
+        }
+        StateHasChanged();
+    }
+
+    private async Task RefreshCartItemPriceAsync(CartDetailViewModel item)
+    {
+        var response = await BranchService.GetBranchProductDetailAsync(branchId: BranchId ?? 0, productDetailId: item.DetailId);
+        if (response.IsSuccess && response.Data != null)
+        {
+            var detail = response.Data;
+            item.SellPrice = detail.SellPrice;
+            item.DiscountedPrice = detail.DiscountedPrice;
+            item.DiscountPercent = detail.DiscountPercent;
+            item.Quantity = Math.Min(item.Quantity ?? 0, detail.Quantity ?? 0);
+            StateHasChanged();
+        }
+    }
+
+    private async Task UpdateQuantity(CartDetailViewModel item, int newQuantity)
+    {
+        if (newQuantity < 1 || (SelectedDetail != null && newQuantity > SelectedDetail.Quantity))
+            return;
+
+        var (custId, anonId) = await GetIdsAsync();
+
+        var dto = new CartActionDTO
+        {
+            CustomerId = custId,
+            AnonymousId = anonId,
+            ProductDetailId = item.DetailId,
+            Quantity = newQuantity
+        };
+
+        var updateResult = await CartService.UpdateQuantityAsync(dto);
+
+        if (updateResult.IsSuccess)
+        {
+            var cartItem = CartItems.FirstOrDefault(x => x.DetailId == item.DetailId);
+            if (cartItem != null)
+            {
+                cartItem.Quantity = newQuantity;
+                await RefreshCartItemPriceAsync(cartItem);
+                CartState.SetItems(CartItems);
+            }
+        }
+        else
+        {
+            Snackbar.Add("Cập nhật số lượng thất bại", Severity.Error);
+        }
+    }
+    private void OnCartChanged()
+    {
+        CartItems = CartState.Items.ToList();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        CartState.OnChange -= OnCartChanged;
+        StateHasChanged();
+
+    }
+    private async Task RemoveItemFromCart(CartDetailViewModel item)
+    {
+        var (custId, anonId) = await GetIdsAsync();
+
+        var dto = new CartActionDTO
+        {
+            CustomerId = custId,
+            AnonymousId = anonId,
+            ProductDetailId = item.DetailId
+        };
+
+        var result = await CartService.RemoveFromCartAsync(dto);
+
+        if (result.IsSuccess)
+        {
+            CartItems.Remove(item);
+            CartState.SetItems(CartItems);
+            Snackbar.Add(result.Message, Severity.Success);
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add(result.Message, Severity.Error);
+        }
+    }
+
+    private async Task<string> GetOrCreateAnonymousIdAsync()
+    {
+        var id = await JS.InvokeAsync<string>("localStorage.getItem", "anonymousId");
+
+        if (string.IsNullOrEmpty(id))
+        {
+            id = Guid.NewGuid().ToString();
+            await JS.InvokeVoidAsync("localStorage.setItem", "anonymousId", id);
+        }
+
+        return id;
+    }
+
+    void NavigateToProducts()
+    {
+        NavManager.NavigateTo("/san-pham");
+    }
+
+    private void HandleCheckout()
+    {
+        NavManager.NavigateTo("/cart/checkout");
+    }
+
+    private async Task EnsureBranchIdAsync()
+    {
+        if (BranchId != null && BranchId > 0)
+            return;
+
+        BranchId = await BranchHelper.GetBranchIdAsync(role);
+    }
+}
+

@@ -1,0 +1,81 @@
+﻿@page "/input-receipt-detail/{ReceiptId:int}"
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Receipt.InputReceipt
+@using MenShopBlazor.Services.InputReceiptService
+@inject IInputReceiptService InputReceipt
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+
+<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h5" Class="mb-4">CHI TIẾT SẢN PHẨM TRONG KHO</MudText>
+
+            <MudDataGrid T="ProductDetailViewModel"
+                         Items="@productDetails"
+                         RowsPerPage="8"
+                         Dense="true"
+                         Filterable="true"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                <Columns>
+                    <PropertyColumn Property="x => x.ProductName" Title="TÊN SẢN PHẨM" />
+                    <PropertyColumn Property="x => x.SizeName" Title="KÍCH CỞ" />
+                    <PropertyColumn Property="x => x.ColorName" Title="MÀU SẮC" />
+                    <PropertyColumn Property="x => x.FabricName" Title="CHẤT LIỆU" />
+                    <PropertyColumn Property="x => x.Quantity" Title="SỐ LƯỢNG" />
+                    <TemplateColumn Title="GÍA NHẬP">
+                        <CellTemplate>
+                            @if (context.Item.InputPrice.HasValue)
+                            {
+                                @string.Format("{0:N0} ₫", context.Item.InputPrice)
+                            }
+                        </CellTemplate>
+
+                    </TemplateColumn>
+                </Columns>
+
+                <PagerContent>
+                    <MudDataGridPager T="ProductDetailViewModel" />
+                </PagerContent>
+            </MudDataGrid>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+@code {
+    [Parameter] public int ReceiptId { get; set; }
+    private List<BreadcrumbItem> _items = new();
+
+    private List<ProductDetailViewModel> productDetails = new();
+    private bool _loading = false;
+    protected override async Task OnInitializedAsync()
+    {
+        _items = new()
+    {
+        new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+        new BreadcrumbItem("Phiếu nhập", href: "/list-input-receipts", icon: Icons.Material.Filled.List),
+        new BreadcrumbItem($"Chi tiết phiếu nhập", disabled: true, href: null, icon: Icons.Material.Filled.List),
+    };
+
+        var response = await InputReceipt.GetInputReceiptByIdAsync(ReceiptId);
+
+        if (response.IsSuccess && response.Data is not null)
+        {
+            productDetails = response.Data;
+        }
+        else
+        {
+            Snackbar.Add(response.Message, Severity.Error);
+            productDetails = new List<ProductDetailViewModel>();
+        }
+    }
+
+}

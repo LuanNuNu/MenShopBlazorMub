@@ -1,0 +1,91 @@
+﻿@page "/list-storage"
+@using MenShopBlazor.DTOs.Storage
+@using MenShopBlazor.Services.Storage
+@inject IStorageService StorageService
+@inject NavigationManager Navigation
+
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+@if (!_loading)
+{
+    <MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+        <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH KHO HÀNG</MudText>
+                <MudDataGrid T="StorageViewModel"
+                             Items="@products"
+                             RowsPerPage="8"
+                             Dense="true"
+                             Filterable="true"
+                             FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                    <Columns>
+                        <PropertyColumn Property="x => x.StorageId"
+                                        Title="MÃ KHO"
+                                        Editable="false" />
+                        <PropertyColumn Property="x => x.CategoryName" Title="DANH MỤC KHO" />
+                        <PropertyColumn Property="x => x.ManagerName" Title="QUẢN LÝ" />
+                        <TemplateColumn Title="TÙY CHỈNH" TextAlign="DataGridColumnAlign.Right">
+                            <CellTemplate>
+                                <MudStack Row>
+                                    <MudButton StartIcon="@Icons.Material.Filled.DataSaverOn"
+                                               Size="Size.Small"
+                                               Color="Color.Tertiary"
+                                               Class="ml-2"
+                                               OnClick="@(() => GoToDetailPage(context.Item.StorageId))">
+                                        Chi tiết
+                                    </MudButton>
+
+                                </MudStack>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+
+                    <PagerContent>
+                        <MudDataGridPager T="StorageViewModel" />
+                    </PagerContent>
+                </MudDataGrid>
+
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+}
+@code {
+    private List<StorageViewModel> products = new List<StorageViewModel>();
+    private List<BreadcrumbItem> _items = new();
+    private bool _loading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Kho Hàng", href: null, icon: Icons.Material.Filled.List),
+        };
+        await LoadProductsAsync();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = StorageService.GetAllProductsStorageAsync();
+
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
+
+        products = loadTask.Result;
+
+        _loading = false;
+        StateHasChanged();
+    }
+    private void GoToDetailPage(int storageId)
+    {
+
+        Navigation.NavigateTo($"/storage-product/{storageId}");
+    }
+}

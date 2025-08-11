@@ -1,0 +1,91 @@
+﻿@using MenShopBlazor.DTOs.Collection
+@using MenShopBlazor.DTOs.Collection.CreateandUpdate
+@using MenShopBlazor.DTOs.Collection.ViewModel
+@using MenShopBlazor.Services.Collection
+@using MenShopBlazor.Services.CollectionService
+@inject ICollectionService CollectionService
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">Thêm bộ sưu tập mới</MudText>
+        <MudTextField @bind-Value="collectionDTO.CollectionName"
+                      Label="Tên Bộ Sưu Tập"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => collectionDTO.CollectionName)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+        <MudTextField @bind-Value="collectionDTO.Description"
+                      Label="Mô Tả"
+                      Required="true"
+                      Immediate="true"
+                      For="@(() => collectionDTO.Description)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+        <MudDatePicker @bind-Date="collectionDTO.StartTime"
+                       Label="Ngày bắt đầu"
+                       DateFormat="dd-MM-yyyy"
+                       Required="true"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined" />
+
+        <MudDatePicker @bind-Date="collectionDTO.EndTime"
+                       Label="Ngày kết thúc"
+                       DateFormat="dd-MM-yyyy"
+                       Required="true"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CreateProductAsync">Thêm</MudButton>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; }
+    private List<CollectionViewModel> collectionDTOs = new(); 
+    private CollectionCreateDTO collectionDTO = new();
+    protected override async Task OnInitializedAsync()
+    {
+        collectionDTO.Status = true;
+    }
+  
+    private async Task CreateProductAsync()
+    {
+        if (string.IsNullOrWhiteSpace(collectionDTO.CollectionName))
+        {
+            Snackbar.Add("Tên bộ sưu tập không được để trống", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(collectionDTO.Description))
+        {
+            Snackbar.Add("Mô tả không được để trống", Severity.Warning);
+            return;
+        }
+        if (collectionDTO.EndTime < collectionDTO.StartTime)
+        {
+            Snackbar.Add("Ngày kết thúc không được trước ngày bắt đầu", Severity.Error);
+            return;
+        }
+
+        var response = await CollectionService.AddCollection(collectionDTO);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add($"{response.Message}", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+
+        }
+        else
+        {
+            Snackbar.Add($"{response.Message}", Severity.Error);
+        }
+    }
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

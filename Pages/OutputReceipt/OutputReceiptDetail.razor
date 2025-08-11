@@ -1,0 +1,61 @@
+﻿@page "/output-receipt-detail/{ReceiptId:int}"
+
+@using MenShopBlazor.DTOs.Product.ViewModel
+@using MenShopBlazor.DTOs.Receipt.OutputReceipt
+@using MenShopBlazor.Services.OutputReceiptService
+@inject IOutputReceiptService OutputReceipt
+@attribute [Authorize(Roles = "Admin, RevenueManager, Factory, WarehouseManager")]
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+
+<MudOverlay Visible="_loading" DarkBackground="true" Fixed="true" ZIndex="1300">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+</MudOverlay>
+
+<MudContainer Class="mt-5 px-8" MaxWidth="MaxWidth.False">
+    <MudBreadcrumbs Items="_items"></MudBreadcrumbs>
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h5" Class="mb-4">DANH SÁCH CHI TIẾT SẢN PHẨM TRONG KHO</MudText>
+
+            <MudDataGrid T="ProductDetailViewModel"
+                         Items="@productDetails"
+                         RowsPerPage="8"
+                         Dense="true"
+                         Filterable="true"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow">
+
+                <Columns>
+                    <PropertyColumn Property="x => x.ProductName" Title="Tên sản phẩm" />
+                    <PropertyColumn Property="x => x.SizeName" Title="Kích cỡ" />
+                    <PropertyColumn Property="x => x.ColorName" Title="Màu sắc" />
+                    <PropertyColumn Property="x => x.FabricName" Title="Chất liệu" />
+                    <PropertyColumn Property="x => x.Quantity" Title="Số lượng" />
+                    <PropertyColumn Property="x => x.SellPrice" Title="Giá bán" />
+                </Columns>
+
+                <PagerContent>
+                    <MudDataGridPager T="ProductDetailViewModel" />
+                </PagerContent>
+            </MudDataGrid>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+@code {
+    [Parameter] public int ReceiptId { get; set; }
+
+    private List<ProductDetailViewModel> productDetails = new();
+    private List<BreadcrumbItem> _items = new();
+    private bool _loading = false;
+    protected override async Task OnInitializedAsync()
+    {
+        _items = new()
+        {
+            new BreadcrumbItem("Trang chủ", href: "/", icon: Icons.Material.Filled.Home),
+            new BreadcrumbItem("Phiếu xuất", href: "/list-output-receipts", icon: Icons.Material.Filled.List),
+            new BreadcrumbItem($"Chi tiết phiếu xuất",disabled:true, href: null, icon: Icons.Material.Filled.List),
+        };
+        productDetails = await OutputReceipt.GetOutputDetailReceiptDTOs(ReceiptId);
+
+    }
+}

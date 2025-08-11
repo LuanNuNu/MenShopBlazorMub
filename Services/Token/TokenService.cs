@@ -42,8 +42,6 @@ public class TokenService : ITokenService
             Role = jwt.Claims.FirstOrDefault(c => c.Type == "role")?.Value
         };
     }
-
-
     public async Task<string?> GetUserIdAsync()
     {
         var token = await GetTokenAsync();
