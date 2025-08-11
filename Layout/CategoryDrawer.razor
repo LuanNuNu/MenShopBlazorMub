@@ -22,12 +22,12 @@
                           Label="Tìm kiếm gì đó..."
                           Variant="Variant.Outlined"
                           Margin="Margin.Dense"
-                          Immediate="true"
-                          MaxLength="10"
+                          MaxLength="50"
                           Adornment="Adornment.End"
                           AdornmentIcon="@Icons.Material.Filled.Search"
                           AdornmentColor="Color.Secondary"
-                          Class="mb-2" />
+                          Class="mb-2"
+                          OnKeyUp="OnSearchKeyUp" />
         </MudHidden>
 
         @if (_loading)
@@ -45,23 +45,31 @@
                     }
                 </MudNavGroup>
             }
+
+            <MudNavGroup Title="Bộ sưu tập">
+                <MudNavLink OnClick="@(() => SelectCategory(collection.CollectionId))">@collection.CollectionName</MudNavLink>
+            </MudNavGroup>
         }
     </MudNavMenu>
 </MudDrawer>
 
+
 @code {
     [Parameter] public bool Open { get; set; }
     [Parameter] public EventCallback<bool> OpenChanged { get; set; }
-    [Parameter] public string Search { get; set; }
-    [Parameter] public EventCallback<string> SearchChanged { get; set; }
+    [Parameter]
+    public string Search { get; set; }
+    [Parameter]
+    public EventCallback<string> SearchChanged { get; set; }
     [Parameter] public EventCallback<int> OnCategorySelected { get; set; }
+    [Parameter]
+    public CollectionViewModel collection { get; set; } = new CollectionViewModel();
+    [Parameter]
+    public IEnumerable<CategoryProductViewModel> Categories { get; set; } = Enumerable.Empty<CategoryProductViewModel>();
 
     private bool _loading = false;
-    private IEnumerable<CategoryProductViewModel> categories = new List<CategoryProductViewModel>();
-    private CollectionViewModel collection = new();
 
-
-    private IEnumerable<IGrouping<string, CategoryProductViewModel>> GroupedCategories => categories
+    private IEnumerable<IGrouping<string, CategoryProductViewModel>> GroupedCategories => Categories
         .GroupBy(c => GetCategoryGroupName(c.Name));
 
     private string GetCategoryGroupName(string? name)
@@ -77,20 +85,6 @@
         return "Khác";
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadCategoriesAsync();
-        await LoadCollection();
-    }
-
-    private async Task LoadCollection()
-    {
-        var reponse = await CollectionService.GetCurrentCollection();
-        if(reponse.IsSuccess)
-        {
-            collection = reponse?.Data ?? new CollectionViewModel();
-        }
-    }
     private async Task SelectCategory(int id)
     {
         if (OnCategorySelected.HasDelegate)
@@ -99,20 +93,18 @@
         await OpenChanged.InvokeAsync(false);
     }
 
-    private async Task LoadCategoriesAsync()
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
     {
-        _loading = true;
-        StateHasChanged();
-
-        var loadTask = CategoryService.GetAllCategoriesAsync();
-        var delayTask = Task.Delay(1000);
-        await Task.WhenAll(loadTask, delayTask);
-
-        categories = loadTask.Result;
-
-        _loading = false;
-        StateHasChanged();
+        if (e.Key == "Enter")
+        {
+            await SearchChanged.InvokeAsync(Search);
+        }
+    }
+    private void NavigateToCategory(int categoryId)
+    {
+        OnCategorySelected.InvokeAsync(categoryId);
     }
 }
+
 
 

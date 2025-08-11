@@ -33,10 +33,12 @@
     [Parameter] public EventCallback<int> OnCategorySelected { get; set; }
 
     private bool _loading = false;
-    private IEnumerable<CategoryProductViewModel> categories = new List<CategoryProductViewModel>();
-    private CollectionViewModel collection = new();
+    [Parameter]
+    public CollectionViewModel collection { get; set; } = new CollectionViewModel();
+    [Parameter]
+    public IEnumerable<CategoryProductViewModel> Categories { get; set; } = Enumerable.Empty<CategoryProductViewModel>();
 
-    private IEnumerable<IGrouping<string, CategoryProductViewModel>> GroupedCategories => categories
+    private IEnumerable<IGrouping<string, CategoryProductViewModel>> GroupedCategories => Categories
         .GroupBy(c => GetCategoryGroupName(c.Name));
 
     private string GetCategoryGroupName(string? name)
@@ -52,38 +54,11 @@
         return "Khác";
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadCategoriesAsync();
-        await LoadCollection();
-    }
-
-    private async Task LoadCategoriesAsync()
-    {
-        _loading = true;
-        StateHasChanged();
-
-        var loadTask = CategoryService.GetAllCategoriesAsync();
-        var delayTask = Task.Delay(1000);
-        await Task.WhenAll(loadTask, delayTask);
-
-        categories = loadTask.Result;
-
-        _loading = false;
-        StateHasChanged();
-    }
 
     private void NavigateToCategory(int categoryId)
     {
         OnCategorySelected.InvokeAsync(categoryId);
     }
 
-    private async Task LoadCollection()
-    {
-        var reponse = await CollectionService.GetCurrentCollection();
-        if (reponse.IsSuccess)
-        {
-            collection = reponse?.Data ?? new CollectionViewModel();
-        }
-    }
+
 }

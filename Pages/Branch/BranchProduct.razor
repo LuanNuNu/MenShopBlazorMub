@@ -106,14 +106,15 @@
     private int pageSize = 10;
     private bool isLoadingMore = false;
     private bool hasMore = true;
+    private string? search;
 
 
     protected override async Task OnInitializedAsync()
     {
-        NavManager.LocationChanged += OnLocationChanged;
+        NavManager.LocationChanged += async (sender, e) => await OnLocationChangedHandler(e);
         _loading = true;
         StateHasChanged();
-
+        ReadQueryString();
         var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
         if (query.TryGetValue("categoryId", out var cid) && int.TryParse(cid, out var parsedCategoryId))
@@ -183,15 +184,6 @@
     {
         var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        if (query.TryGetValue("categoryId", out var cid) && int.TryParse(cid, out var parsedCategoryId))
-        {
-            CategoryId = parsedCategoryId;
-        }
-    }
-    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
-    {
-        var uri = NavManager.ToAbsoluteUri(e.Location);
-        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
 
         if (query.TryGetValue("categoryId", out var cid) && int.TryParse(cid, out var parsedCategoryId))
         {
@@ -202,16 +194,49 @@
             CategoryId = null;
         }
 
-        _loading = true;
-        await LoadBranchProductsAsync();
-        _loading = false;
-
-        StateHasChanged();
+        if (query.TryGetValue("search", out var s))
+        {
+            search = s.ToString();
+        }
+        else
+        {
+            search = null;
+        }
     }
+
+    private async Task OnLocationChangedHandler(LocationChangedEventArgs e)
+    {
+        var uri = NavManager.ToAbsoluteUri(e.Location);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        int? newCategoryId = null;
+        if (query.TryGetValue("categoryId", out var cid) && int.TryParse(cid, out var parsedCategoryId))
+            newCategoryId = parsedCategoryId;
+
+        string? newSearch = null;
+        if (query.TryGetValue("search", out var s))
+            newSearch = s.ToString();
+
+        // Nếu có thay đổi category hoặc search thì reset page và tải lại
+        if (CategoryId != newCategoryId || search != newSearch)
+        {
+            CategoryId = newCategoryId;
+            search = newSearch;
+            page = 1;
+            hasMore = true;
+
+            _loading = true;
+            await LoadBranchProductsAsync();
+            _loading = false;
+
+            StateHasChanged();
+        }
+    }
+
 
     public void Dispose()
     {
-        NavManager.LocationChanged -= OnLocationChanged;
+        NavManager.LocationChanged += async (sender, e) => await OnLocationChangedHandler(e);
     }
 
     /// <summary>
@@ -252,7 +277,10 @@
             {
                 list = list.Where(p => p.CategoryProductID == CategoryId.Value).ToList();
             }
-
+            if (!string.IsNullOrEmpty(search))
+            {
+                list = list.Where(p => p.ProductName != null && p.ProductName.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
 
             var paginatedList = list.Skip((page - 1) * pageSize).Take(pageSize).ToList();
             if (paginatedList.Count < pageSize) hasMore = false;

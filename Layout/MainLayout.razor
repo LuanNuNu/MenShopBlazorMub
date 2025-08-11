@@ -1,12 +1,19 @@
-﻿@inherits LayoutComponentBase
-@using MenShopBlazor.Services.Token
-@inject NavigationManager NavManager
-@inject ITokenService TokenService
+﻿@using MenShopBlazor.Services.Token
+@using MenShopBlazor.DTOs.Category
+@using MenShopBlazor.Services.Category
+@using MenShopBlazor.DTOs.Collection.ViewModel
+@using MenShopBlazor.Services.Collection
 @using MenShopBlazor.Shared
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
+@inject NavigationManager NavManager
+@inject ITokenService TokenService
+@inject ICollectionService CollectionService
+@inject ICategoryService CategoryService
 @inject IJSRuntime JSRuntime
 @inject CartState CartState
+
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -44,24 +51,27 @@
 
                         </MudLink>
 
-                        <ProductMenu OnCategorySelected="NavigateToCategory" />
+                    <ProductMenu OnCategorySelected="NavigateToCategory" Categories="categories" Collection="collection" />
 
                         <MudHidden Breakpoint="Breakpoint.MdAndUp">
                         <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="@ToggleCustomerDrawer" Color="Color.Dark" />
                         </MudHidden>
 
                         <MudSpacer />
-                        <MudHidden Breakpoint="Breakpoint.MdAndDown">
-                            <MudTextField @bind-Value="Search"
-                                          Label="Tìm kiếm gì đó..."
-                                          Variant="Variant.Outlined"
-                                          Margin="Margin.Dense"
-                                          Immediate="true"
-                                          MaxLength="10"
-                                          Adornment="Adornment.End"
-                                          AdornmentIcon="@Icons.Material.Filled.Search"
-                                      AdornmentColor="Color.Secondary" Class="mx-2" />
-                        </MudHidden>
+                    <MudHidden Breakpoint="Breakpoint.MdAndDown">
+                        <MudTextField T="string"
+                                      @bind-Value="Search"
+                                      Label="Tìm kiếm gì đó..."
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      MaxLength="50"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      AdornmentColor="Color.Secondary"
+                                      Class="mx-2"
+                                      OnKeyUp="OnSearchKeyUp" />
+                    </MudHidden>
+
 
                     <MudBadge Content="@CartState.Items.Sum(x => x.Quantity)"
                               Color="Color.Error"
@@ -81,9 +91,8 @@
             {
                 <CategoryDrawer Open="_customerDrawerOpen"
                                 OpenChanged="@((bool value) => _customerDrawerOpen = value)"
-                                Search="@Search"
-                                SearchChanged="@((string val) => Search = val)"
-                                OnCategorySelected="NavigateToCategory" />
+                                Search="@Search" SearchChanged="OnSearchChanged"
+                                OnCategorySelected="NavigateToCategory" Categories="categories" Collection="collection" />
 
             }
             }
@@ -131,6 +140,9 @@
     private string? _role;
     private bool _isLoggedIn = false;
     public string Search { get; set; } = "";
+    private IEnumerable<CategoryProductViewModel> categories = new List<CategoryProductViewModel>();
+    private CollectionViewModel collection = new();
+    private bool _loading = false;
 
     private static readonly List<string> ManagementRoles = new()
     {
@@ -158,6 +170,8 @@
         }
 
         await RefreshRole();
+        await LoadCategoriesAsync();
+        await LoadCollection();
         UpdateNavVisibility(NavManager.Uri);
 
         NavManager.LocationChanged += OnLocationChanged;
@@ -208,6 +222,56 @@
         CartState.OnChange -= StateHasChanged;
     }
     private bool IsCheckoutPage => NavManager.Uri.Contains("/cart/checkout");
+
+    private async Task OnSearchChanged(string val)
+    {
+        Search = val;
+        await SearchProducts();
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchProducts();
+        }
+    }
+
+
+    private async Task SearchProducts()
+    {
+        if (!string.IsNullOrWhiteSpace(Search))
+            NavManager.NavigateTo($"/san-pham?search={Uri.EscapeDataString(Search)}");
+        else
+            NavManager.NavigateTo("/san-pham");
+    }
+
+
+
+
+    private async Task LoadCategoriesAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var loadTask = CategoryService.GetAllCategoriesAsync();
+        var delayTask = Task.Delay(1000);
+        await Task.WhenAll(loadTask, delayTask);
+
+        categories = loadTask.Result;
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadCollection()
+    {
+        var reponse = await CollectionService.GetCurrentCollection();
+        if (reponse.IsSuccess)
+        {
+            collection = reponse?.Data ?? new CollectionViewModel();
+        }
+    }
 }
 
 

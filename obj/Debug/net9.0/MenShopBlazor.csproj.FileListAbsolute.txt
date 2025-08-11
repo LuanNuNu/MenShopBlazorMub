@@ -2287,10 +2287,10 @@ D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\8dik6aimv
 D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\ojzmznxc89-ao2xbpvz5d.gz
 D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\4u5pl4wjpy-qv31dxh5um.gz
 D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\t93jezm0kb-i80enxw2yw.gz
-D:\Dự án tốt nghiệp 2\MenShopBlazor\bin\Debug\net9.0\wwwroot\_framework\MenShopBlazor.hzwjvqmajv.wasm
-D:\Dự án tốt nghiệp 2\MenShopBlazor\bin\Debug\net9.0\wwwroot\_framework\MenShopBlazor.evvezfoh16.pdb
-D:\Dự án tốt nghiệp 2\MenShopBlazor\bin\Debug\net9.0\wwwroot\_framework\MenShopBlazor.hzwjvqmajv.wasm.gz
-D:\Dự án tốt nghiệp 2\MenShopBlazor\bin\Debug\net9.0\wwwroot\_framework\MenShopBlazor.evvezfoh16.pdb.gz
-D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\la06oqj3s7-hzwjvqmajv.gz
-D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\3jlcbpnv3y-evvezfoh16.gz
-D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\0n6ault2f5-00r8kwwn3f.gz
+D:\Dự án tốt nghiệp 2\MenShopBlazor\bin\Debug\net9.0\wwwroot\_framework\MenShopBlazor.231wjw7ddz.wasm
+D:\Dự án tốt nghiệp 2\MenShopBlazor\bin\Debug\net9.0\wwwroot\_framework\MenShopBlazor.w3hdznwz5k.pdb
+D:\Dự án tốt nghiệp 2\MenShopBlazor\bin\Debug\net9.0\wwwroot\_framework\MenShopBlazor.231wjw7ddz.wasm.gz
+D:\Dự án tốt nghiệp 2\MenShopBlazor\bin\Debug\net9.0\wwwroot\_framework\MenShopBlazor.w3hdznwz5k.pdb.gz
+D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\la06oqj3s7-231wjw7ddz.gz
+D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\3jlcbpnv3y-w3hdznwz5k.gz
+D:\Dự án tốt nghiệp 2\MenShopBlazor\obj\Debug\net9.0\compressed\0n6ault2f5-p3vgmzl4hz.gz
